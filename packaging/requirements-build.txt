@@ -1,0 +1,2 @@
+# Only needed to build Cliptrove.exe (Cliptrove itself uses just Python's standard library)
+pyinstaller==6.11.1

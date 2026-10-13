@@ -1,0 +1,251 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cliptrove</title>
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@300..800&family=Geist+Mono:wght@400..600&family=Space+Grotesk:wght@400..700&display=swap">
+<script>try{document.documentElement.dataset.theme=localStorage.getItem('cliptrove.theme')||localStorage.getItem('clipshelf.theme')||localStorage.getItem('ggclips.theme')||'dark'}catch(e){document.documentElement.dataset.theme='dark'}</script>
+<link rel="stylesheet" href="/app.css?v=__V__">
+</head>
+<body>
+<header class="top">
+  <a class="brand" href="#/"><span class="logo" data-ic="logo"></span><span>Cliptrove</span></a>
+  <label class="search"><span data-ic="search"></span><input id="q" type="search" placeholder="Search titles, nicknames, games, files, dates   ( / )" autocomplete="off" spellcheck="false"></label>
+  <nav class="tabs" id="tabs"><a href="#/" data-tab="home">Home</a><a href="#/edited" data-tab="edited">Edited <span class="pill" id="edPill"></span></a><a href="#/analytics" data-tab="analytics">Analytics</a><a href="#/log" data-tab="log">Change log <span class="pill" id="logCount"></span></a></nav>
+  <div class="spacer"></div>
+  <button class="icon-btn" id="bRefresh" data-ic="refresh" title="Look for new clips"></button>
+  <a class="icon-btn" id="bSettings" href="#/settings" data-ic="gear" title="Settings: clip folders, saving, start with Windows"></a>
+  <button class="icon-btn" id="bTheme" title="Light / dark theme"></button>
+</header>
+<div class="banner" id="banner" hidden></div>
+<main class="page">
+  <section id="homeView">
+    <div class="welcome" id="welcome" hidden>
+      <span class="welcome-ic" data-ic="film"></span>
+      <h2>Welcome to Cliptrove</h2>
+      <p>Tell Cliptrove where your clips are. It works with SteelSeries GG, NVIDIA, AMD, Xbox Game Bar, OBS, Medal, or any folder of videos. Your files stay where they are.</p>
+      <a class="btn primary" href="#/settings" data-ic="plus">Add your clips</a>
+    </div>
+    <div class="hero" id="hero"></div>
+    <div class="sechead" id="homeHead">
+      <h2>Browse games</h2><span class="count" id="catCount"></span>
+      <div class="spacer"></div>
+      <select class="select" id="catSort" aria-label="Sort games">
+        <option value="recent">Recently played</option>
+        <option value="clips">Most clips</option>
+        <option value="name">A–Z</option>
+      </select>
+    </div>
+    <div class="tiles" id="tiles"></div>
+    <p class="foot" id="homeFoot">Want your own cover for a game? Put a picture named like the game (for example <span class="mono">VALORANT.jpg</span>) in your <button class="link-btn" type="button" data-open-place="covers">covers folder</button>.</p>
+  </section>
+  <section id="gameView" hidden>
+    <div class="gbanner" aria-hidden="true"><i id="gbannerArt"></i></div>
+    <a class="back" href="#/" data-ic="chevl">Home</a>
+    <div class="ghead" id="ghead"></div>
+    <div class="toolbar">
+      <div class="seg" id="filters">
+        <button data-f="all">All</button>
+        <button data-f="titled">Titled &amp; nicknamed</button>
+        <button data-f="starred" data-ic="star">Starred</button>
+      </div>
+      <span class="count" id="count"></span>
+      <div class="spacer"></div>
+      <select class="select" id="sort" aria-label="Sort clips">
+        <option value="new">Newest first</option>
+        <option value="old">Oldest first</option>
+        <option value="long">Longest first</option>
+        <option value="short">Shortest first</option>
+        <option value="title">Title A–Z</option>
+        <option value="game">Game A–Z</option>
+      </select>
+    </div>
+    <div class="grid" id="grid"></div>
+    <div id="sentinel"></div>
+    <p class="empty" id="noResults" hidden>No clips match these filters.</p>
+  </section>
+  <section id="editedView" hidden>
+    <div class="sechead">
+      <h2>Edited clips</h2><span class="count" id="edCount"></span>
+      <div class="spacer"></div>
+      <button class="btn sm" id="edFolder" type="button" data-ic="folder">Open folder</button>
+      <select class="select" id="edSort" aria-label="Sort edited clips">
+        <option value="new">Newest first</option>
+        <option value="old">Oldest first</option>
+        <option value="big">Largest first</option>
+        <option value="name">Name A–Z</option>
+      </select>
+    </div>
+    <div class="grid" id="edGrid"></div>
+    <p class="empty" id="edEmpty" hidden></p>
+  </section>
+  <section id="statsView" hidden>
+    <div class="sechead stathead">
+      <h2>Analytics</h2><span class="count" id="stSpan"></span>
+      <div class="spacer"></div>
+      <div class="seg" id="stRange" role="group" aria-label="Time range">
+        <button type="button" data-r="30">30 days</button><button type="button" data-r="90">3 months</button><button type="button" data-r="365">12 months</button><button type="button" data-r="all">All time</button>
+      </div>
+    </div>
+    <div class="kpis" id="stKpis"></div>
+    <section class="panel">
+      <div class="panel-head">
+        <div><h3>What you played</h3><p class="panel-sub" id="stChartSub"></p></div>
+        <div class="spacer"></div>
+        <div class="seg sm" id="stMetric" role="group" aria-label="Measure">
+          <button type="button" data-m="days" title="Days with at least one clip of the game">Days played</button><button type="button" data-m="clips">Clips</button>
+        </div>
+      </div>
+      <div class="chart" id="stChart"></div>
+      <div class="legend" id="stLegend"></div>
+    </section>
+    <section class="panel" id="stNext">
+      <div class="panel-head"><div><h3>Up next</h3><p class="panel-sub">Your chance of playing each game in the next 7 days, learned from your own history</p></div></div>
+      <div id="stNextBody"></div>
+    </section>
+    <div class="panel-cols">
+      <section class="panel">
+        <div class="panel-head"><div><h3>Top games</h3><p class="panel-sub" id="stTopSub"></p></div></div>
+        <div id="stTop"></div>
+      </section>
+      <section class="panel">
+        <div class="panel-head"><div><h3>When you play</h3><p class="panel-sub" id="stWhenSub"></p></div></div>
+        <div id="stWhen"></div>
+      </section>
+    </div>
+    <section class="panel">
+      <div class="panel-head"><div><h3>Clip calendar</h3><p class="panel-sub" id="stCalSub">The last 12 months</p></div></div>
+      <div class="calwrap" id="stCal"></div>
+    </section>
+    <p class="foot">Analytics count a day as played when you saved at least one clip of the game that day. Desktop recordings and unsorted clips aren’t included.</p>
+  </section>
+  <section id="logView" hidden><div class="sechead"><h2>Change log</h2></div><div id="logBody"></div></section>
+  <section id="settingsView" hidden>
+    <div class="sechead"><h2>Settings</h2><span class="count" id="setTotal"></span></div>
+    <div class="settings" id="setBody"></div>
+  </section>
+</main>
+
+<div class="player" id="player" hidden>
+  <div class="player-bg" data-close></div>
+  <div class="shell" id="shell" role="dialog" aria-modal="true" aria-label="Clip player" tabindex="-1">
+    <div class="pmain" id="pmain">
+      <div class="stage paused" id="stage">
+        <video id="vid" playsinline preload="auto"></video>
+        <div class="bigplay" data-ic="play"></div>
+        <div class="spinner" aria-hidden="true"></div>
+        <div class="stage-msg" id="stageMsg" hidden></div>
+      </div>
+      <div class="controls">
+        <div class="tl" id="tl">
+          <div class="tl-rail"></div>
+          <div class="tl-sel" id="tlSel"></div>
+          <div class="tl-played" id="tlPlayed"></div>
+          <div class="tl-h" id="hIn" title="Start: drag, or press I"></div>
+          <div class="tl-h" id="hOut" title="End: drag, or press O"></div>
+          <div class="tl-head" id="tlHead"></div>
+          <div class="tl-tip" id="tlTip">0:00</div>
+        </div>
+        <div class="crow">
+          <button class="cbtn" id="bPrev" data-ic="prev" title="Previous clip (P)"></button>
+          <button class="cbtn" id="bBack" data-ic="back" title="Back 5 seconds (←)"></button>
+          <button class="cbtn main" id="bPlay" title="Play / pause (Space)"></button>
+          <button class="cbtn" id="bFwd" data-ic="fwd" title="Forward 5 seconds (→)"></button>
+          <button class="cbtn" id="bNext" data-ic="next" title="Next clip (N)"></button>
+          <div class="ctime"><span id="tCur">0:00</span> <span class="dim">/ <span id="tDur">0:00</span></span></div>
+          <div class="spacer"></div>
+          <button class="cbtn" id="bLoop" data-ic="loop" title="Loop the selection"></button>
+          <select class="cspeed" id="speed" title="Playback speed">
+            <option value="0.25">0.25×</option><option value="0.5">0.5×</option><option value="0.75">0.75×</option>
+            <option value="1" selected>1×</option><option value="1.25">1.25×</option><option value="1.5">1.5×</option><option value="2">2×</option>
+          </select>
+          <button class="cbtn" id="bMute" title="Mute everything (M)"></button>
+          <button class="cbtn" id="bFull" data-ic="full" title="Full screen (F)"></button>
+        </div>
+      </div>
+    </div>
+    <aside class="pside">
+      <div class="phead">
+        <span class="gicon" id="pIcon"></span>
+        <div class="phead-txt"><div class="pgame" id="pGame"></div><div class="pdate" id="pDate"></div></div>
+        <button class="icon-btn sm" data-close data-ic="close" title="Close (Esc)"></button>
+      </div>
+      <div class="pbody">
+        <section class="sec">
+          <div class="trow" id="titleView">
+            <h2 class="ptitle" id="pTitle"></h2>
+            <button class="icon-btn sm" id="bStar" title="Star this clip (S)"></button>
+            <button class="icon-btn sm" id="bRename" data-ic="edit" title="Give this clip a nickname (R)"></button>
+          </div>
+          <form class="rename" id="renameForm" hidden>
+            <input class="input" id="renameInput" maxlength="120" autocomplete="off">
+            <div class="row"><button class="btn primary sm" type="submit">Save nickname</button><button class="btn sm" type="button" id="renameCancel">Cancel</button></div>
+          </form>
+          <div class="pmeta" id="pMeta"></div>
+          <form class="gameset" id="gameForm" hidden>
+            <label class="field" for="gameInput">Game</label>
+            <div class="row nowrap"><input class="input" id="gameInput" list="gameList" maxlength="80" autocomplete="off" placeholder="Which game is this?"><button class="btn sm" type="submit">Move</button></div>
+            <datalist id="gameList"></datalist>
+          </form>
+          <div class="pfile"><span class="mono" id="pFile"></span><button class="btn sm" id="bReveal" type="button" data-ic="folder">Show in folder</button></div>
+        </section>
+        <section class="sec">
+          <h3>Audio <span class="hint" id="mixHint"></span><button class="btn sm" id="mixReset" type="button" hidden>Reset levels</button></h3>
+          <div id="mixer"></div>
+        </section>
+        <section class="sec">
+          <h3>Trim <span class="hint" id="trimHint"></span></h3>
+          <div class="trim">
+            <div class="tbox"><span>Start</span><b id="tIn">0:00.0</b><button class="btn sm" id="setIn">Set here (I)</button></div>
+            <div class="tbox"><span>End</span><b id="tOut">0:00.0</b><button class="btn sm" id="setOut">Set here (O)</button></div>
+          </div>
+          <div class="tsel">Selection length <b id="tSel">0:00.0</b></div>
+          <div class="row"><button class="btn sm" id="trimFull">Whole clip</button><button class="btn sm" id="trimGG">Saved trim</button><button class="btn sm" id="trimSave" data-ic="scissors" title="Use this selection as the clip's trim in previews and on the home page">Keep this trim</button></div>
+        </section>
+        <section class="sec">
+          <h3 id="exTitle">Save edited copy</h3>
+          <div id="exportBody">
+            <label class="check over" id="exOverRow"><input type="checkbox" id="exOverwrite" checked> Overwrite this edited clip <span class="dim">(untick to save a new copy instead)</span></label>
+            <label class="field">Name<input class="input" id="exName" maxlength="100" placeholder="edit" autocomplete="off"></label>
+            <div class="exfile" id="exFile"></div>
+            <div class="seg exq" id="exQuality" role="group" aria-label="Quality">
+              <button type="button" data-q="original">Original quality</button>
+              <button type="button" data-q="small">Compressed · 18 MB</button>
+            </div>
+            <p class="exnote" id="exQNote"></p>
+            <label class="check" id="exPreciseRow"><input type="checkbox" id="exPrecise"> Exact cut <span class="dim">(re-encodes the video, a bit slower)</span></label>
+            <label class="check"><input type="checkbox" id="exLoud"> Even out loudness <span class="dim">(normal YouTube level)</span></label>
+            <button class="btn primary wide" id="exGo" data-ic="save">Save copy</button>
+            <div class="exprog" id="exProg" hidden><div class="bar"><i id="exBar"></i></div><span id="exText"></span><div class="row" id="exActions"></div></div>
+          </div>
+          <p class="note" id="exportNote" hidden></p>
+        </section>
+        <details class="sec keys">
+          <summary>Keyboard shortcuts</summary>
+          <dl>
+            <dt><kbd>Space</kbd> <kbd>K</kbd></dt><dd>Play / pause</dd>
+            <dt><kbd>←</kbd> <kbd>→</kbd></dt><dd>Back / forward 5 s (with Shift: 1 s)</dd>
+            <dt><kbd>J</kbd> <kbd>L</kbd></dt><dd>Back / forward 10 s</dd>
+            <dt><kbd>,</kbd> <kbd>.</kbd></dt><dd>One frame back / forward</dd>
+            <dt><kbd>I</kbd> <kbd>O</kbd></dt><dd>Set start / end of the selection</dd>
+            <dt><kbd>Home</kbd> <kbd>End</kbd></dt><dd>Jump to start / end of the selection</dd>
+            <dt><kbd>P</kbd> <kbd>N</kbd></dt><dd>Previous / next clip</dd>
+            <dt><kbd>S</kbd></dt><dd>Star / unstar</dd>
+            <dt><kbd>R</kbd></dt><dd>Nickname</dd>
+            <dt><kbd>M</kbd> <kbd>F</kbd></dt><dd>Mute / full screen</dd>
+            <dt><kbd>Esc</kbd></dt><dd>Close the player</dd>
+          </dl>
+        </details>
+      </div>
+    </aside>
+  </div>
+</div>
+<div class="toast" id="toast" hidden></div>
+<script id="data" type="application/json">__CLIPTROVE_DATA__</script>
+<script src="/app.js?v=__V__"></script>
+</body>
+</html>

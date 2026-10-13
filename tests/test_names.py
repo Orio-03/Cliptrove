@@ -3,7 +3,7 @@ import datetime as dt
 import os
 import unittest
 
-from clipshelf.names import game_from_folders, parse_name
+from cliptrove.names import game_from_folders, parse_name
 
 
 def at(*parts):

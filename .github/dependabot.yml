@@ -1,0 +1,11 @@
+# Suggests updates (as pull requests) for the tools the build uses. Cliptrove itself has no dependencies.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+  - package-ecosystem: pip
+    directory: /packaging
+    schedule:
+      interval: monthly
