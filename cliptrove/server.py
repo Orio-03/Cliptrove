@@ -57,7 +57,8 @@ class App:
     def start(self):
         for ch in self.library.refresh():
             print("  " + describe(ch))
-        threading.Thread(target=self.library.work, daemon=True).start()
+        self.worker = threading.Thread(target=self.library.work, daemon=True)
+        self.worker.start()
 
     def page(self):
         try:
@@ -448,4 +449,5 @@ def serve(port, background=False, open_browser=True):
     except KeyboardInterrupt:
         pass
     finally:
+        app.library.stop()
         httpd.server_close()

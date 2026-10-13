@@ -134,7 +134,37 @@ You can also double-click `Cliptrove.bat`. Options:
 --data-dir DIR  keep settings and caches somewhere else (handy for testing)
 ```
 
-Tests: `python -m unittest discover tests`
+## Tests and automation
+
+**What the tests cover:**
+
+- **`tests/test_server.py`:** the local server.
+  - who may use it: the token, and requests from other sites
+  - bad requests: unknown clips, broken JSON, oversized requests, missing folders, invalid trims
+  - the first-start setup, renames, new clips, damaged data files, and Quit
+- **`tests/test_media.py`:** ffmpeg, on tiny generated videos (only when ffmpeg is installed).
+  - probing, thumbnails, .mkv, extra tracks, saving copies
+  - broken and vanished files
+- **`tests/test_gg.py`:** SteelSeries GG reading, against a made-up GG database, including GG changing its format.
+- **Smaller test files:**
+  - `tests/test_names.py` and `tests/test_analytics.py`
+  - `tests/test_settings.py` and `tests/test_util.py`
+  - `tests/test_docs.py`: every link and picture in the docs and on the website exists
+- **`tests/e2e/`:** a browser test that clicks through Cliptrove in headless Chrome, starting from the first-start setup.
+
+`tests/support.py` keeps the test run safe on a real PC:
+- every test uses temporary folders, never your real data
+- nothing goes online
+- SteelSeries GG and Start with Windows are never touched for real
+
+**What runs automatically on GitHub:**
+
+- **`.github/workflows/ci.yml`:** for every change, all of the tests, plus lint, coverage (a minimum of 75%), the browser test and a Windows build. It also runs weekly.
+- **`.github/workflows/release.yml`:** publishes a release when the version goes up.
+- **`.github/workflows/pages.yml`:** publishes the website.
+- **`.github/workflows/dependabot-automerge.yml`:** merges Dependabot's minor updates once everything passes.
+
+[Contributing](../CONTRIBUTING.md) shows how to run the checks yourself.
 
 ## Building the Windows app
 

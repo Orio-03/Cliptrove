@@ -1,0 +1,169 @@
+name: CI
+
+# Every change is checked here, so nobody has to check by hand:
+#   lint         code style problems, undefined names, every version has release notes
+#   unit         the unit and error tests on Windows and Linux, two Python versions
+#   coverage     how much of the code the tests run (fails below the minimum), with a report
+#   browser      clicks through Cliptrove in Chrome like a new user, and fails on any page error
+#   windows-app  builds Cliptrove.exe, starts it, and attaches it to the run for trying out
+#   dependencies on pull requests, flags new dependencies with known vulnerabilities or bad licences
+# "Tests passed" is the one check the branch rules require; it passes only when all of the above do.
+on:
+  push:
+    branches: [main]
+  pull_request:
+  schedule:
+    - cron: "17 6 * * 1"  # every Monday, to catch breakage from outside (new Python, Chrome, runners)
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.13"
+      - name: Python
+        run: |
+          python -m pip install --quiet "ruff==0.17.*"
+          ruff check --output-format=github .
+      - name: The page's JavaScript
+        run: |
+          node --check cliptrove/web/app.js
+          for f in tests/e2e/*.mjs; do node --check "$f"; done
+      - name: This version has release notes
+        run: python packaging/release_notes.py "v$(python -c 'import cliptrove; print(cliptrove.__version__)')" > /dev/null
+
+  unit:
+    name: Unit tests (${{ matrix.os }}, Python ${{ matrix.python }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-latest]
+        python: ["3.10", "3.13"]
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: ${{ matrix.python }}
+      - name: Install ffmpeg
+        if: runner.os == 'Linux'
+        run: sudo apt-get update -q && sudo apt-get install -y -q ffmpeg
+      - name: Unit and error tests
+        run: python -m unittest discover tests -v
+
+  coverage:
+    name: Coverage
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.13"
+      - name: Install ffmpeg and coverage
+        run: |
+          sudo apt-get update -q && sudo apt-get install -y -q ffmpeg
+          python -m pip install --quiet "coverage==7.*"
+      - name: Run the tests, measuring coverage
+        run: python -m coverage run -m unittest discover tests
+      - name: Report
+        run: |
+          python -m coverage report
+          { echo "## Test coverage"; echo; python -m coverage report --format=markdown; } >> "$GITHUB_STEP_SUMMARY"
+          python -m coverage html -d coverage-report
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: coverage-report
+          path: coverage-report
+          retention-days: 14
+      - name: Minimum coverage
+        run: python -m coverage report --fail-under=75 > /dev/null
+
+  browser:
+    name: Browser test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.13"
+      - name: Install ffmpeg
+        run: sudo apt-get update -q && sudo apt-get install -y -q ffmpeg
+      - name: Make a small clip library
+        run: python tests/e2e/make_library.py "$RUNNER_TEMP/clips"
+      - name: Start Cliptrove with nothing set up
+        run: |
+          python -m cliptrove --data-dir "$RUNNER_TEMP/data" --port 48690 --background &
+          for i in $(seq 1 60); do curl -sf http://127.0.0.1:48690/api/ping && break; sleep 1; done
+      - name: Click through it in Chrome
+        run: node tests/e2e/e2e.mjs "http://127.0.0.1:48690/" "$RUNNER_TEMP/clips" "$RUNNER_TEMP/screenshots"
+      - name: Cliptrove's log
+        if: always()
+        run: cat "$RUNNER_TEMP/data/cliptrove.log" || true
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: browser-test-screenshots
+          path: ${{ runner.temp }}/screenshots
+          retention-days: 14
+
+  windows-app:
+    name: Windows app
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+      - name: Install PyInstaller
+        run: python -m pip install -r packaging/requirements-build.txt
+      - name: Build
+        run: python packaging/build_windows.py
+      - name: Start it and check the site works
+        run: python packaging/smoke_test.py dist/Cliptrove/Cliptrove.exe
+      - uses: actions/upload-artifact@v7
+        with:
+          name: Cliptrove-windows-test-build
+          path: dist/*.zip
+          retention-days: 7
+
+  dependencies:
+    name: Dependency review
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/dependency-review-action@v5
+        with:
+          fail-on-severity: moderate
+
+  done:
+    name: Tests passed
+    if: always()
+    needs: [lint, unit, coverage, browser, windows-app, dependencies]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Everything passed
+        env:
+          RESULTS: ${{ toJSON(needs) }}
+        run: |
+          python3 - <<'PY'
+          import json, os, sys
+          results = {job: r["result"] for job, r in json.loads(os.environ["RESULTS"]).items()}
+          # Dependency review only runs on pull requests
+          bad = {job: r for job, r in results.items() if r != "success" and not (job == "dependencies" and r == "skipped")}
+          for job, r in results.items():
+              print(f"{job:12} {r}")
+          sys.exit(1 if bad else 0)
+          PY

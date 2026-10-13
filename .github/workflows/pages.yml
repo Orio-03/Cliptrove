@@ -20,13 +20,15 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
+      - name: Check every link and picture on the site and in the docs exists
+        run: python3 -m unittest discover tests -p "test_docs.py"
       - run: |
           mkdir -p _site/images
           cp -r site/. _site/
           cp docs/images/*.webp _site/images/
           cp assets/logo.svg assets/logo-256.png assets/social-preview.png _site/
-      - uses: actions/configure-pages@v5
-      - uses: actions/upload-pages-artifact@v3
+      - uses: actions/configure-pages@v6
+      - uses: actions/upload-pages-artifact@v5
         with:
           path: _site
 
@@ -42,4 +44,4 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - id: deployment
-        uses: actions/deploy-pages@v4
+        uses: actions/deploy-pages@v5
