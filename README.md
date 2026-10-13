@@ -13,6 +13,8 @@
 <p align="center">
   <a href="https://github.com/Th30utcast/Cliptrove/releases/latest"><b>Download for Windows</b></a>
   ·
+  <a href="https://th30utcast.github.io/Cliptrove/">Website</a>
+  ·
   <a href="#get-started">Get started</a>
   ·
   <a href="PRIVACY.md">Privacy</a>
@@ -26,9 +28,9 @@
   <a href="LICENSE.md"><img alt="License: PolyForm Noncommercial" src="https://img.shields.io/badge/license-PolyForm%20Noncommercial-555"></a>
 </p>
 
-![Cliptrove's home page: your newest clips play in a carousel, with a tile for each game below](docs/images/home.webp)
+![Cliptrove in action: browsing a game, previewing a clip, turning down the Mic, starring it, and the Analytics tab](docs/images/demo.webp)
 
-<sub>All screenshots use a demo library of made-up games.</sub>
+<sub>All screenshots and the demo use a library of made-up games.</sub>
 
 ## What it does
 
@@ -118,6 +120,12 @@ Turn this on in Settings, so Cliptrove runs quietly in the background and **http
 
 ## Using Cliptrove
 
+### Your library
+
+The home page plays your newest clips, with a tile for every game below. Hover over a clip anywhere to preview it.
+
+![Cliptrove's home page: your newest clips play in a carousel, with a tile for each game below](docs/images/home.webp)
+
 ### Watch, mix and trim
 
 Click any clip to open the player.
@@ -185,6 +193,8 @@ Your settings, nicknames and other data are kept separately, so nothing is lost.
 Turn off **Start with Windows**, quit Cliptrove, and delete its folder. To also remove your settings and nicknames, delete `%LOCALAPPDATA%\Cliptrove`. Your clips are never touched. [Privacy](PRIVACY.md#removing-everything) has the details.
 
 ## Questions
+
+Have a question or an idea? Ask in [**Discussions**](https://github.com/Th30utcast/Cliptrove/discussions). Found a bug? [Report it](https://github.com/Th30utcast/Cliptrove/issues/new/choose).
 
 <details>
 <summary><b>Some clips are under the wrong game, or under "Unsorted"</b></summary>
