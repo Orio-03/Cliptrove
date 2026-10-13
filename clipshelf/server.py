@@ -230,6 +230,8 @@ def make_handler(app):
                     return self.send_json(app.media.jobs.get(parts[2]) or {"state": "error", "error": "Unknown job"})
                 if parts[:2] == ["api", "settings"]:
                     return self.send_json(app.settings_info())
+                if parts[:2] == ["api", "analytics"]:
+                    return self.send_json(app.library.predictions())
                 self.fail(404, "Not found")
             except (LookupError, ValueError, OSError) as e:
                 self.fail(404, str(e))
@@ -355,6 +357,15 @@ def make_handler(app):
     return Handler
 
 
+class Server(ThreadingHTTPServer):
+    daemon_threads = True
+
+    def handle_error(self, request, client_address):
+        if isinstance(sys.exc_info()[1], (ConnectionError, TimeoutError)):
+            return  # the browser hung up mid-request (normal when skipping through a video)
+        super().handle_error(request, client_address)
+
+
 def watchdog(app, httpd):
     while True:
         time.sleep(10)
@@ -377,14 +388,13 @@ def serve(port, background=False, open_browser=True):
     httpd = None
     for p in (port, 0):
         try:
-            httpd = ThreadingHTTPServer(("127.0.0.1", p), BaseHTTPRequestHandler)
+            httpd = Server(("127.0.0.1", p), BaseHTTPRequestHandler)
             break
         except OSError:
             continue
     if httpd is None:
         sys.exit("Couldn't start ClipShelf.")
     app = App(httpd.server_port)
-    httpd.daemon_threads = True
     httpd.RequestHandlerClass = make_handler(app)
     app.start()
     app.media.clean_cache()

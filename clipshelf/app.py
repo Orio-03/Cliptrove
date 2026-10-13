@@ -20,7 +20,7 @@ def main(argv=None):
     if args.data_dir:
         paths.configure(args.data_dir)
 
-    if sys.stdout is None:  # started without a window (pythonw): keep a small log instead
+    if sys.stdout is None or args.background:  # no window to print to: keep a small log instead
         os.makedirs(paths.DATA, exist_ok=True)
         try:
             if os.path.getsize(paths.LOG) > 1 << 20:

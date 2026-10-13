@@ -7,7 +7,7 @@ import re
 import threading
 import time
 
-from . import covers, paths, settings
+from . import analytics, covers, paths, settings
 from .sources import folder, gg
 from .sources.folder import UNSORTED
 from .util import clip_id, iso_time, load_json, norm, now_iso, path_key, safe_name, save_json
@@ -85,6 +85,7 @@ class Library:
         self.wake = threading.Event()
         self.edits, self.edit_prefix = {}, {}
         self.last_seen = 0.0
+        self.forecast = (None, None)  # (what it was worked out from, result)
 
     # ----- reading the sources -----
 
@@ -628,6 +629,19 @@ class Library:
                 "sources": {"gg": self.gg_enabled(), "folders": sum(f["enabled"] for f in self.cfg["sources"]["folders"])},
                 "exportDir": self.export_dir(),
             }
+
+    # ----- analytics -----
+
+    def predictions(self):
+        """Which games you're likely to play in the next week (worked out again when your clips or the date change)."""
+        with self.lock:
+            clips = [{"game": c["game"], "recorded": c["recorded"]} for c in self.clips.values()]
+        sig = (time.strftime("%Y-%m-%d"), hash(tuple(sorted((c["recorded"], c["game"]) for c in clips))))
+        if self.forecast[0] == sig:
+            return self.forecast[1]
+        result = analytics.predict(clips)
+        self.forecast = (sig, result)
+        return result
 
     # ----- settings -----
 

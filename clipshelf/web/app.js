@@ -278,16 +278,17 @@ function parseHash() {
   if (h === 'log') return {view: 'log', game: ''};
   if (h === 'edited') return {view: 'edited', game: ''};
   if (h === 'settings') return {view: 'settings', game: ''};
+  if (h === 'analytics') return {view: 'analytics', game: ''};
   return {view: 'home', game: ''};
 }
-const DEPTH = {home: 0, log: 0, edited: 0, settings: 0, game: 1};
+const DEPTH = {home: 0, log: 0, edited: 0, settings: 0, analytics: 0, game: 1};
 const scrollMemo = new Map();
 if ('scrollRestoration' in history) history.scrollRestoration = 'manual';  // the page restores scroll itself, after the transition starts
 let curHash = null;
 const tileCover = game => $('tiles').querySelector(`a.tile[href="#/game/${encodeURIComponent(game)}"] > .cover`);
 function applyRoute(to) {
   state.view = to.view; state.game = to.game;
-  const views = {home: $('homeView'), game: $('gameView'), edited: $('editedView'), log: $('logView'), settings: $('settingsView')};
+  const views = {home: $('homeView'), game: $('gameView'), edited: $('editedView'), log: $('logView'), settings: $('settingsView'), analytics: $('statsView')};
   for (const [v, el] of Object.entries(views)) el.hidden = v !== state.view;
   const tab = state.view === 'game' ? 'home' : state.view;
   $('tabs').querySelectorAll('a').forEach(a => a.classList.toggle('on', a.dataset.tab === tab));
@@ -343,6 +344,7 @@ function render() {
   else if (state.view === 'game') renderGame();
   else if (state.view === 'edited') renderEdited();
   else if (state.view === 'settings') renderSettings();
+  else if (state.view === 'analytics') renderStats();
   else renderLog();
 }
 let qTimer;
@@ -350,7 +352,7 @@ $('q').addEventListener('input', () => {
   clearTimeout(qTimer);
   qTimer = setTimeout(() => {
     state.q = $('q').value.toLowerCase().split(/\s+/).filter(Boolean);
-    if (state.q.length && (state.view === 'home' || state.view === 'settings')) location.hash = '#/all';
+    if (state.q.length && ['home', 'settings', 'analytics'].includes(state.view)) location.hash = '#/all';
     else render();
   }, 150);
 });
@@ -474,7 +476,10 @@ function heroSync() {
 }
 document.addEventListener('visibilitychange', heroSync);
 let resizeRaf = 0;
-window.addEventListener('resize', () => { cancelAnimationFrame(resizeRaf); resizeRaf = requestAnimationFrame(layoutHero); });
+window.addEventListener('resize', () => {
+  cancelAnimationFrame(resizeRaf);
+  resizeRaf = requestAnimationFrame(() => { layoutHero(); if (state.view === 'analytics') renderStats(true); });
+});
 
 // ---------- home: games ----------
 function gameStats() {
@@ -726,6 +731,332 @@ function renderLog() {
     + `</tbody></table></div>`;
 }
 $('logBody').addEventListener('click', e => { const b = e.target.closest('[data-open]'); if (b) openClip(b.dataset.open, [byId.get(b.dataset.open)], null); });
+
+// ---------- analytics ----------
+// A day counts as "played" when it has at least one clip of the game. Desktop recordings and unsorted clips
+// aren't games, so they're left out. Charts are drawn here; the predictions come from ClipShelf (/api/analytics).
+const DAY_MS = 86400000;
+const NOT_GAMES = new Set(['desktop', 'unsorted', 'unknowngame']);
+const normName = s => String(s).toLowerCase().replace(/[^a-z0-9]+/g, '');
+const SERIES = ['#07f2cc', '#7b8cff', '#ffb547', '#ff6b9a', '#4cc9f0', '#b98cff'];
+const OTHER = 'Other games';
+const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+const WDAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+const RANGE_WORD = {30: 'the 30 days before', 90: 'the 3 months before', 365: 'the 12 months before'};
+// Days are numbered in your local calendar (read them back with the getUTC* methods)
+const dayOf = ts => { const d = new Date(ts); return Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()) / DAY_MS; };
+const dateOf = n => new Date(n * DAY_MS);
+const weekday = n => (dateOf(n).getUTCDay() + 6) % 7;  // 0 = Monday
+function fmtDayNo(n, withYear = true) { const d = dateOf(n); return `${d.getUTCDate()} ${MON[d.getUTCMonth()]}` + (withYear ? ` ${d.getUTCFullYear()}` : ''); }
+const isoDay = s => { const [y, m, d] = s.split('-').map(Number); return Date.UTC(y, m - 1, d) / DAY_MS; };
+const pctText = p => (p > 0 && p < 0.01 ? '<1%' : `${Math.round(p * 100)}%`);
+const st = {range: store.get('stRange', '365'), metric: store.get('stMetric', 'days'), focus: '', pred: null, predLoading: false, colors: new Map()};
+
+function statClips() {
+  const out = [];
+  for (const c of clips) {
+    if (!c.ts || NOT_GAMES.has(normName(c.game))) continue;
+    const d = new Date(c.ts);
+    out.push({game: c.game, day: dayOf(c.ts), wd: (d.getDay() + 6) % 7, hour: d.getHours()});
+  }
+  return out;
+}
+function longestStreak(days) {
+  let best = 0, run = 0, prev = null;
+  for (const d of [...days].sort((a, b) => a - b)) { run = prev !== null && d === prev + 1 ? run + 1 : 1; best = Math.max(best, run); prev = d; }
+  return best;
+}
+// A small tooltip that follows the pointer inside a box
+function tipFor(box) {
+  let t = box.querySelector(':scope > .ctip');
+  if (!t) { t = document.createElement('div'); t.className = 'ctip'; box.appendChild(t); }
+  return {
+    show(html, clientX, clientY) {
+      t.innerHTML = html;
+      t.classList.add('on');
+      const r = box.getBoundingClientRect(), x = clientX - r.left, y = clientY - r.top, w = t.offsetWidth, h = t.offsetHeight;
+      t.style.left = clamp(x + 16 + w > r.width ? x - w - 16 : x + 16, 0, Math.max(0, r.width - w)) + 'px';
+      t.style.top = (y - h - 12 < 0 ? y + 18 : y - h - 12) + 'px';
+    },
+    hide() { t.classList.remove('on'); },
+  };
+}
+function artHTML(game) {
+  const url = COVER.get(game);
+  return `<span class="art" style="--h:${hue(game)}">${esc(initials(game))}${url ? `<img src="${esc(url)}" alt="" loading="lazy" onerror="this.remove()">` : ''}</span>`;
+}
+
+function renderStats(still) {
+  const all = statClips(), today = dayOf(Date.now());
+  const first = all.reduce((m, x) => Math.min(m, x.day), today);
+  const r = st.range === 'all' ? 'all' : String([30, 90, 365].includes(+st.range) ? +st.range : 90);
+  const from = r === 'all' ? first : today - (+r - 1);
+  const list = all.filter(x => x.day >= from && x.day <= today);
+  $('stRange').querySelectorAll('button').forEach(b => b.classList.toggle('on', b.dataset.r === r));
+  $('stMetric').querySelectorAll('button').forEach(b => b.classList.toggle('on', b.dataset.m === st.metric));
+  $('stSpan').textContent = all.length ? `${fmtDayNo(from)} – ${fmtDayNo(today)}` : '';
+  placeInd($('stRange')); placeInd($('stMetric'));
+  $('statsView').classList.toggle('still', !!still);
+  renderKpis(list, all, from, today, r);
+  renderChart(list, from, today, r);
+  renderTop(list);
+  renderWhen(list);
+  renderCal(all, today);
+  if (!still) renderPredictions();
+}
+$('stRange').onclick = e => { const b = e.target.closest('button'); if (!b) return; st.range = b.dataset.r; store.set('stRange', st.range); renderStats(); };
+$('stMetric').onclick = e => { const b = e.target.closest('button'); if (!b) return; st.metric = b.dataset.m; store.set('stMetric', st.metric); renderStats(); };
+
+function renderKpis(list, all, from, today, r) {
+  const days = new Set(list.map(x => x.day)), per = new Map(), firstSeen = new Map();
+  for (const x of all) if (!firstSeen.has(x.game) || x.day < firstSeen.get(x.game)) firstSeen.set(x.game, x.day);
+  for (const x of list) { let s = per.get(x.game); if (!s) per.set(x.game, s = new Set()); s.add(x.day); }
+  let top = null;
+  for (const [g, s] of per) if (!top || s.size > top[1]) top = [g, s.size];
+  const fresh = [...per.keys()].filter(g => firstSeen.get(g) >= from).length;
+  let clipsCmp = '', daysCmp = '';
+  if (r !== 'all') {
+    const len = today - from + 1, prev = all.filter(x => x.day >= from - len && x.day < from);
+    const cmp = (now, before) => {
+      if (!before) return now ? `<small class="up">None in ${RANGE_WORD[r]}</small>` : '';
+      const d = Math.round((now - before) / before * 100);
+      return `<small class="${d > 0 ? 'up' : d < 0 ? 'down' : ''}">${d > 0 ? '↑ ' : d < 0 ? '↓ ' : ''}${Math.abs(d)}% vs ${RANGE_WORD[r]}</small>`;
+    };
+    clipsCmp = cmp(list.length, prev.length);
+    daysCmp = cmp(days.size, new Set(prev.map(x => x.day)).size);
+  }
+  const card = (label, value, sub = '', txt = false) => `<div class="kpi"><span>${label}</span><b${txt ? ' class="txt"' : ''} title="${esc(value)}">${esc(value)}</b>${sub}</div>`;
+  $('stKpis').innerHTML = card('Clips', list.length.toLocaleString(), clipsCmp)
+    + card('Days with clips', days.size.toLocaleString(), daysCmp)
+    + card('Games played', per.size.toLocaleString(), fresh && r !== 'all' ? `<small>${fresh} new to you</small>` : '')
+    + card('Most played', top ? top[0] : '—', top ? `<small>${plural(top[1], 'day', 'days')}</small>` : '', true)
+    + card('Longest streak', plural(longestStreak(days), 'day', 'days'), '<small>in a row with clips</small>');
+}
+
+function chartBuckets(from, today, r) {
+  const unit = r === '30' ? 'day' : r === 'all' && today - from > 540 ? 'month' : 'week';
+  const out = [];
+  if (unit === 'day') {
+    for (let d = from; d <= today; d++) out.push({a: d, b: d, label: fmtDayNo(d, false), tip: `${WDAYS[weekday(d)]} ${fmtDayNo(d)}`});
+  } else if (unit === 'week') {
+    for (let s = from - weekday(from); s <= today; s += 7) out.push({a: s, b: s + 6, label: fmtDayNo(s, false), tip: `Week of ${fmtDayNo(s)}`});
+  } else {
+    const d0 = dateOf(from);
+    for (let y = d0.getUTCFullYear(), m = d0.getUTCMonth(); ; m === 11 ? (m = 0, y++) : m++) {
+      const a = Date.UTC(y, m, 1) / DAY_MS;
+      if (a > today) break;
+      out.push({a, b: Date.UTC(y, m + 1, 1) / DAY_MS - 1, label: m === 0 || !out.length ? `${MON[m]} ’${String(y).slice(2)}` : MON[m], tip: `${MONTHS[m]} ${y}`});
+    }
+  }
+  return {unit, buckets: out};
+}
+function niceStep(max) {
+  const raw = max / 4, p = Math.pow(10, Math.floor(Math.log10(raw || 1)));
+  for (const k of [1, 2, 2.5, 5, 10]) if (k * p >= raw) return Math.max(1, k * p);
+  return 10 * p;
+}
+function renderChart(list, from, today, r) {
+  const box = $('stChart'), metric = st.metric, add = n => (metric === 'days' ? 1 : n);
+  const byDay = new Map(), totals = new Map();
+  for (const x of list) { let m = byDay.get(x.day); if (!m) byDay.set(x.day, m = new Map()); m.set(x.game, (m.get(x.game) || 0) + 1); }
+  for (const m of byDay.values()) for (const [g, n] of m) totals.set(g, (totals.get(g) || 0) + add(n));
+  const top = [...totals].sort((a, b) => b[1] - a[1]).slice(0, SERIES.length).map(([g]) => g);
+  st.colors = new Map(top.map((g, i) => [g, SERIES[i]]));
+  const rest = [...totals].filter(([g]) => !st.colors.has(g)).reduce((n, [, v]) => n + v, 0);
+  const series = top.concat(rest ? [OTHER] : []);
+  const color = s => st.colors.get(s) || 'var(--line-2)';
+  if (st.focus && !series.includes(st.focus)) st.focus = '';
+  const {unit, buckets} = chartBuckets(from, today, r);
+  const vals = buckets.map(b => {
+    const v = new Map(series.map(s => [s, 0]));
+    for (let d = b.a; d <= b.b; d++) {
+      const m = byDay.get(d);
+      if (m) for (const [g, n] of m) { const s = st.colors.has(g) ? g : OTHER; v.set(s, v.get(s) + add(n)); }
+    }
+    return v;
+  });
+  const W = Math.max(280, box.clientWidth), H = box.clientHeight || 280, M = {l: 38, r: 6, t: 8, b: 26};
+  const max = Math.max(1, ...vals.map(v => [...v.values()].reduce((a, b) => a + b, 0)));
+  const step = niceStep(max), ceil = Math.ceil(max / step) * step;
+  const y = v => M.t + (H - M.t - M.b) * (1 - v / ceil);
+  const band = (W - M.l - M.r) / buckets.length, bw = Math.max(2, Math.min(42, band * 0.68));
+  let axes = '';
+  for (let v = step; v <= ceil + 1e-9; v += step) axes += `<line class="gl" x1="${M.l}" x2="${W - M.r}" y1="${y(v)}" y2="${y(v)}"/><text x="${M.l - 8}" y="${y(v) + 4}" text-anchor="end">${+v.toFixed(1)}</text>`;
+  axes += `<text x="${M.l - 8}" y="${y(0) + 4}" text-anchor="end">0</text>`;
+  const every = Math.max(1, Math.ceil(buckets.length / Math.max(2, Math.floor((W - M.l) / 66))));
+  buckets.forEach((b, i) => { if (i % every === 0) axes += `<text x="${M.l + band * (i + 0.5)}" y="${H - 6}" text-anchor="middle">${esc(b.label)}</text>`; });
+  let bars = '';
+  vals.forEach((v, i) => {
+    let acc = 0, segs = '';
+    const x = (M.l + band * i + (band - bw) / 2).toFixed(1);
+    for (const s of series) {
+      const n = v.get(s);
+      if (!n) continue;
+      const y1 = y(acc + n), y0 = y(acc);
+      segs += `<rect class="s${st.focus === s ? ' f' : ''}" data-s="${esc(s)}" x="${x}" y="${y1.toFixed(1)}" width="${bw.toFixed(1)}" height="${Math.max(1, y0 - y1).toFixed(1)}" rx="2" fill="${color(s)}"/>`;
+      acc += n;
+    }
+    if (segs) bars += `<g class="col" style="animation-delay:${Math.min(i, 40) * 12}ms">${segs}</g>`;
+  });
+  const label = `${metric === 'days' ? 'Days played' : 'Clips'} per ${unit}`;
+  box.innerHTML = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(label)} for your top games">`
+    + `<rect class="hl" x="0" y="${M.t}" width="${band}" height="${H - M.t - M.b}" rx="6"/>${axes}`
+    + `<line class="base" x1="${M.l}" x2="${W - M.r}" y1="${y(0)}" y2="${y(0)}"/>${bars}`
+    + (list.length ? '' : `<text class="empty-msg" x="${W / 2}" y="${H / 2}" text-anchor="middle">No clips in this period</text>`) + '</svg>';
+  box.classList.toggle('focus', !!st.focus);
+  const svg = box.querySelector('svg'), hl = svg.querySelector('.hl'), tip = tipFor(box);
+  const words = metric === 'days' ? ['day', 'days'] : ['clip', 'clips'];
+  svg.onpointermove = e => {
+    const rect = svg.getBoundingClientRect(), i = Math.floor(((e.clientX - rect.left) * W / rect.width - M.l) / band);
+    if (i < 0 || i >= buckets.length) { tip.hide(); hl.classList.remove('on'); return; }
+    hl.setAttribute('x', M.l + band * i);
+    hl.classList.add('on');
+    const v = vals[i], rows = series.filter(s => v.get(s)).sort((a, b) => v.get(b) - v.get(a));
+    const total = rows.reduce((n, s) => n + v.get(s), 0);
+    tip.show(`<b>${esc(buckets[i].tip)}</b>`
+      + (rows.length ? rows.map(s => `<div class="r"><i class="sw" style="--c:${color(s)}"></i><span>${esc(s)}</span><em>${plural(v.get(s), ...words)}</em></div>`).join('') : '<span class="dim">No clips</span>')
+      + (rows.length > 1 && metric === 'clips' ? `<em class="tot">${plural(total, 'clip', 'clips')} in all</em>` : ''), e.clientX, e.clientY);
+  };
+  svg.onpointerleave = () => { tip.hide(); hl.classList.remove('on'); };
+  $('stLegend').innerHTML = series.map(s => `<button type="button" data-s="${esc(s)}" class="${st.focus === s ? 'on' : ''}" style="--c:${color(s)}"><i class="sw"></i><span>${esc(s)}</span><em>${(s === OTHER ? rest : totals.get(s)).toLocaleString()}</em></button>`).join('');
+  $('stLegend').classList.toggle('focus', !!st.focus);
+  $('stChartSub').textContent = list.length ? `${label}, your top ${plural(top.length, 'game', 'games')}${rest ? ' and the rest' : ''}. Click a game to pick it out.` : '';
+}
+$('stLegend').addEventListener('click', e => {
+  const b = e.target.closest('button[data-s]');
+  if (!b) return;
+  st.focus = st.focus === b.dataset.s ? '' : b.dataset.s;
+  $('stChart').classList.toggle('focus', !!st.focus);
+  $('stChart').querySelectorAll('rect.s').forEach(r => r.classList.toggle('f', r.dataset.s === st.focus));
+  $('stLegend').classList.toggle('focus', !!st.focus);
+  $('stLegend').querySelectorAll('button').forEach(x => x.classList.toggle('on', x.dataset.s === st.focus));
+});
+
+function renderTop(list) {
+  const per = new Map();
+  for (const x of list) {
+    let s = per.get(x.game);
+    if (!s) per.set(x.game, s = {game: x.game, days: new Set(), clips: 0});
+    s.days.add(x.day); s.clips++;
+  }
+  const rows = [...per.values()].sort((a, b) => b.days.size - a.days.size || b.clips - a.clips).slice(0, 8);
+  const max = rows.length ? rows[0].days.size : 1;
+  $('stTopSub').textContent = per.size ? `By days played, out of ${plural(per.size, 'game', 'games')} in this period` : '';
+  $('stTop').innerHTML = rows.length ? '<div class="toplist">' + rows.map((s, i) => `<a class="toprow" href="#/game/${encodeURIComponent(s.game)}">`
+    + `<span class="rk">${i + 1}</span>${artHTML(s.game)}<div style="min-width:0"><div class="nm" title="${esc(s.game)}">${esc(s.game)}</div>`
+    + `<div class="meter" style="--c:${st.colors.get(s.game) || 'var(--line-2)'}"><i style="width:${(s.days.size / max * 100).toFixed(1)}%;animation-delay:${i * 40}ms"></i></div></div>`
+    + `<div class="val"><b>${plural(s.days.size, 'day', 'days')}</b>${plural(s.clips, 'clip', 'clips')}</div></a>`).join('') + '</div>'
+    : '<p class="empty">No clips in this period.</p>';
+}
+
+function renderWhen(list) {
+  const box = $('stWhen'), grid = Array.from({length: 7}, () => new Array(24).fill(0));
+  for (const x of list) grid[x.wd][x.hour]++;
+  const max = Math.max(...grid.flat());
+  if (!max) { box.innerHTML = '<p class="empty">No clips in this period.</p>'; $('stWhenSub').textContent = ''; return; }
+  const W = Math.max(280, box.clientWidth), L = 34, gap = 3, cell = Math.max(6, Math.min(24, (W - L) / 24 - gap)), H = 7 * (cell + gap) + 18;
+  const lvl = n => (n ? 1 + Math.min(3, Math.floor(n / max * 4)) : 0);
+  let s = '';
+  for (let d = 0; d < 7; d++) {
+    s += `<text x="${L - 8}" y="${d * (cell + gap) + cell / 2 + 4}" text-anchor="end">${WDAYS[d].slice(0, 3)}</text>`;
+    for (let h = 0; h < 24; h++) s += `<rect class="c l${lvl(grid[d][h])}" data-d="${d}" data-h="${h}" x="${L + h * (cell + gap)}" y="${d * (cell + gap)}" width="${cell}" height="${cell}"/>`;
+  }
+  for (const h of [0, 6, 12, 18]) s += `<text x="${L + h * (cell + gap)}" y="${H - 3}">${pad(h)}:00</text>`;
+  const dayTotals = grid.map(row => row.reduce((a, b) => a + b, 0)), hourTotals = grid[0].map((_, h) => grid.reduce((n, row) => n + row[h], 0));
+  const topDay = Math.max(...dayTotals);
+  box.innerHTML = `<div class="heatbox"><svg class="heat" width="${L + 24 * (cell + gap)}" height="${H}" role="img" aria-label="Clips by weekday and hour">${s}</svg></div>`
+    + '<div class="wdays">' + WDAYS.map((name, d) => `<div class="wday"><span>${name}</span><div class="meter"><i style="width:${(dayTotals[d] / topDay * 100).toFixed(1)}%;animation-delay:${d * 40}ms"></i></div><em>${plural(dayTotals[d], 'clip', 'clips')}</em></div>`).join('') + '</div>';
+  const bestDay = dayTotals.indexOf(Math.max(...dayTotals)), bestHour = hourTotals.indexOf(Math.max(...hourTotals));
+  $('stWhenSub').textContent = `Most clips on ${WDAYS[bestDay]}s, and around ${pad(bestHour)}:00`;
+  const tip = tipFor(box.querySelector('.heatbox'));
+  box.querySelector('svg').onpointermove = e => {
+    const c = e.target.closest('rect.c');
+    if (!c) { tip.hide(); return; }
+    const d = +c.dataset.d, h = +c.dataset.h;
+    tip.show(`<b>${WDAYS[d]}, ${pad(h)}:00–${pad((h + 1) % 24)}:00</b><span>${plural(grid[d][h], 'clip', 'clips')}</span>`, e.clientX, e.clientY);
+  };
+  box.querySelector('svg').onpointerleave = () => tip.hide();
+}
+
+function renderCal(all, today) {
+  const box = $('stCal'), per = new Map();
+  for (const x of all) {
+    if (x.day <= today - 371 || x.day > today) continue;
+    let m = per.get(x.day);
+    if (!m) per.set(x.day, m = new Map());
+    m.set(x.game, (m.get(x.game) || 0) + 1);
+  }
+  const end = today + (6 - weekday(today)), start = end - 53 * 7 + 1;  // 53 full weeks, Monday to Sunday
+  const gap = 3, L = 30, T = 18, cell = clamp(Math.floor((box.clientWidth - L) / 53) - gap, 10, 17);
+  const W = L + 53 * (cell + gap), H = T + 7 * (cell + gap);
+  const count = d => { const m = per.get(d); return m ? [...m.values()].reduce((a, b) => a + b, 0) : 0; };
+  const lvl = n => (!n ? 0 : n <= 2 ? 1 : n <= 5 ? 2 : n <= 10 ? 3 : 4);
+  let s = '', month = -1, active = 0;
+  for (let w = 0; w < 53; w++) {
+    const first = start + w * 7, m = dateOf(first).getUTCMonth();
+    if (m !== month && w < 51) { s += `<text x="${L + w * (cell + gap)}" y="11">${MON[m]}</text>`; month = m; }
+    for (let d = 0; d < 7; d++) {
+      const day = first + d;
+      if (day > today) continue;
+      const n = count(day);
+      if (n) active++;
+      s += `<rect class="c l${lvl(n)}" data-day="${day}" x="${L + w * (cell + gap)}" y="${T + d * (cell + gap)}" width="${cell}" height="${cell}"/>`;
+    }
+  }
+  for (const [d, name] of [[0, 'Mon'], [2, 'Wed'], [4, 'Fri']]) s += `<text x="${L - 6}" y="${T + d * (cell + gap) + cell - 2}" text-anchor="end">${name}</text>`;
+  box.innerHTML = `<svg class="heat" width="${W}" height="${H}" role="img" aria-label="Clips per day over the last 12 months">${s}</svg>`
+    + `<div class="scale">Fewer ${[0, 1, 2, 3, 4].map(l => `<i class="l${l}"></i>`).join('')} More</div>`;
+  $('stCalSub').textContent = `${plural(active, 'day', 'days')} with clips in the last 12 months`;
+  const panel = box.closest('.panel'), tip = tipFor(panel);
+  box.querySelector('svg').onpointermove = e => {
+    const c = e.target.closest('rect.c');
+    if (!c) { tip.hide(); return; }
+    const day = +c.dataset.day, m = per.get(day);
+    const games = m ? [...m].sort((a, b) => b[1] - a[1]).slice(0, 4) : [];
+    tip.show(`<b>${WDAYS[weekday(day)]} ${fmtDayNo(day)}</b>` + (games.length
+      ? games.map(([g, n]) => `<div class="r"><i class="sw" style="--c:${st.colors.get(g) || 'var(--line-2)'}"></i><span>${esc(g)}</span><em>${n}</em></div>`).join('')
+      : '<span class="dim">No clips</span>'), e.clientX, e.clientY);
+  };
+  box.querySelector('svg').onpointerleave = () => tip.hide();
+}
+
+async function loadPredictions() {
+  if (st.predLoading) return;
+  st.predLoading = true;
+  try { st.pred = await getJSON('/api/analytics'); } catch (e) { st.pred = {error: e.message}; }
+  st.predLoading = false;
+  if (state.view === 'analytics') renderPredictions();
+}
+function renderPredictions() {
+  const body = $('stNextBody'), r = st.pred;
+  if (!r) { body.innerHTML = '<div class="preds">' + '<div class="skel"></div>'.repeat(3) + '</div>'; loadPredictions(); return; }
+  if (r.error) { body.innerHTML = `<p class="empty">Couldn’t work out predictions: ${esc(r.error)}</p>`; return; }
+  if (!r.enough) {
+    body.innerHTML = `<p class="empty">Not enough history yet. Predictions start once you have about 20 days with clips (you have ${r.activeDays}).</p>`;
+    return;
+  }
+  const cards = r.predictions.slice(0, 6).map((p, i) => {
+    const tag = GAMES.has(p.game) ? 'a' : 'div';
+    return `<${tag} class="pred${i === 0 ? ' lead' : ''}"${tag === 'a' ? ` href="#/game/${encodeURIComponent(p.game)}"` : ''}>${artHTML(p.game)}`
+      + `<div style="min-width:0"><div class="pred-top"><span class="pred-name" title="${esc(p.game)}">${esc(p.game)}</span><span class="pred-pct">${pctText(p.p)}</span></div>`
+      + `<div class="meter"><i style="width:${Math.max(2, p.p * 100).toFixed(1)}%;animation-delay:${i * 60}ms"></i></div>`
+      + `<ul>${p.why.map(w => `<li title="${esc(w)}">${esc(w)}</li>`).join('')}</ul></div></${tag}>`;
+  }).join('');
+  const bt = r.backtest;
+  const proof = bt ? `<div class="proof">`
+    + `<div><b>${pctText(bt.top1.model)}</b><span>of weeks, its top guess was a game you then played</span><small>Guessing the last game you played: ${pctText(bt.top1.recent)}</small></div>`
+    + `<div><b>${pctText(bt.top3.model)}</b><span>of weeks, one of its top 3 was right</span><small>Your last 3 games: ${pctText(bt.top3.recent)}</small></div>`
+    + `<div><b>${pctText(Math.max(0, bt.skill))}</b><span>more accurate chances than a flat guess</span><small>Brier skill score</small></div>`
+    + `</div><p class="model-note">Tested on your ${bt.weeks} weeks with clips since ${fmtDayNo(isoDay(bt.from))}, with a version of the model that hadn’t seen them.</p>` : '';
+  const quiet = r.quiet >= 14 ? `<p class="model-note">You haven’t saved a clip for ${r.quiet} days, so every chance is low until you’re back.</p>` : '';
+  const maxW = Math.max(...r.weights.map(w => Math.abs(w.weight)), 0.01);
+  const how = `<details class="how"><summary>How it works</summary><p>Each day with a clip of a game counts as a day you played it. For every game and every past day, a small `
+    + `logistic-regression model learned how your recent habits relate to whether you played the game again within the next ${r.horizon} days, from `
+    + `${r.trainedOn.rows.toLocaleString()} examples across your ${r.trainedOn.games} games. It looks at two things:</p>`
+    + r.weights.map(w => `<div class="wrow"><span>${esc(w.label)}</span><div class="meter"><i style="width:${(Math.abs(w.weight) / maxW * 100).toFixed(0)}%"></i></div><em>${w.weight > 0 ? 'more likely' : 'less likely'}</em></div>`).join('')
+    + `<p>Adding more inputs (like your usual gap between sessions) didn’t make it better on your own history, so it stays simple. It can’t foresee games you’ve never played.</p></details>`;
+  body.innerHTML = `<div class="preds">${cards}</div>${quiet}${proof}${how}`;
+}
 
 // ---------- settings ----------
 let setInfo = null, setDirty = false, setBusy = false;
