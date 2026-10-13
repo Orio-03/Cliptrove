@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.4.1] - 2026-10-13
+
+- **Fixed:** in saved copies, a loud game and a loud mic at the same moment could add up past the maximum and crackle when **Even out loudness** was off. A limiter now holds just those moments under the maximum and leaves the rest of the mix as it is. Thanks to the Reddit commenter who spotted it.
+
 ## [0.4.0] - 2026-10-13
 
 - **First-start setup.** The first time Cliptrove starts, it asks which apps you record clips with (SteelSeries GG, NVIDIA, AMD, Xbox Game Bar, OBS, Medal or any folder), with the apps it finds on your PC already ticked. Then it asks where each one saves its clips, with found folders filled in. It also offers Start with Windows and checks for ffmpeg. It only appears once, and you can skip it.

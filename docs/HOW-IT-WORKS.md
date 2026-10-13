@@ -61,7 +61,7 @@ Everything that touches video uses ffmpeg:
 - **.mkv, .flv and .ts clips** are repackaged as .mp4, which browsers can play. This copies the video without re-encoding it.
 - **Saving edited copies:**
   - Every track is mixed at the volumes you picked.
-  - Optionally, the loudness is evened out.
+  - Optionally, the loudness is evened out. Otherwise a limiter holds the loudest moments just under the maximum, so a loud game and a loud mic at the same moment don't add up to crackling.
   - The video is copied as it is, or re-encoded with your graphics card's encoder for exact cuts.
   - Compressed copies are re-encoded to land under 18 MB.
 

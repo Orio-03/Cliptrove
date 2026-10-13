@@ -59,13 +59,15 @@ def fake_clip(path, size=70_000):
     return path
 
 
-def real_clip(path, seconds=2.0, extra_tracks=1, audio_codec="aac"):
-    """A tiny real video (with 1 + extra_tracks audio tracks) made with ffmpeg."""
+def real_clip(path, seconds=2.0, extra_tracks=1, audio_codec="aac", peak=None):
+    """A tiny real video (with 1 + extra_tracks audio tracks) made with ffmpeg. With `peak`, every track plays the
+    same tone at that level (1.0 is the most a file can hold), so mixing them adds up."""
     os.makedirs(os.path.dirname(path), exist_ok=True)
     args = [FFMPEG, "-v", "error", "-y", "-f", "lavfi", "-i", f"testsrc2=s=320x180:r=24:d={seconds}"]
     maps = ["-map", "0:v"]
     for i in range(1 + extra_tracks):
-        args += ["-f", "lavfi", "-i", f"sine=f={220 + 110 * i}:d={seconds}"]
+        tone = f"aevalsrc={peak}*sin(2*PI*440*t):s=48000:d={seconds}" if peak else f"sine=f={220 + 110 * i}:d={seconds}"
+        args += ["-f", "lavfi", "-i", tone]
         maps += ["-map", f"{i + 1}:a"]
     args += maps + ["-c:v", "libx264", "-preset", "ultrafast", "-pix_fmt", "yuv420p", "-c:a", audio_codec, path]
     subprocess.run(args, check=True, capture_output=True, creationflags=NO_WINDOW)

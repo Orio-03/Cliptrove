@@ -294,6 +294,10 @@ class Media:
                 if loud and mixed:  # bring the whole mix to normal online-video loudness
                     chains.append(f"{mixed}loudnorm=I=-16:TP=-1.5:LRA=11,aresample=48000[aloud]")
                     mixed = "[aloud]"
+                elif mixed:  # loud moments on several tracks (or a raised volume) can add up past the maximum and
+                    # crackle: hold just those peaks under it (about -1 dB), and leave the rest as it is
+                    chains.append(f"{mixed}alimiter=limit=0.89:level=0[alim]")
+                    mixed = "[alim]"
                 video = "0:v:0"
                 if small:  # smaller picture for longer clips, so the size limit doesn't make it blocky
                     chains.append(f"[0:v:0]scale=-2:'min(ih,{height})'" + (",fps=30" if kbps < 2500 else "") + "[v]")
