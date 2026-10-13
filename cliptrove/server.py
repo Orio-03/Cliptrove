@@ -48,6 +48,8 @@ class App:
         self.last_seen = time.time()
         self.page_loaded = False
         self.dialog_lock = threading.Lock()
+        self.httpd = None
+        self.background = False
 
     def seen(self):
         self.last_seen = self.library.last_seen = time.time()
@@ -130,8 +132,13 @@ class App:
         info = self.library.settings_info()
         info.update(autostart={"supported": autostart.supported(), "enabled": autostart.enabled()},
                     dataDir=paths.DATA, coversDir=paths.COVERS_DIR, ffmpeg=self.media.ffmpeg, appVersion=__version__,
-                    port=self.port)
+                    port=self.port, background=self.background)
         return info
+
+    def quit(self):
+        """Stop Cliptrove (after answering the page)."""
+        print("Quit from the page.")
+        threading.Timer(0.3, self.httpd.shutdown).start()
 
     def set_autostart(self, on):
         if on:
@@ -286,6 +293,9 @@ def make_handler(app):
                     return self.send_json(app.set_autostart(bool(body.get("enabled"))))
                 if path == "/api/pick-folder":
                     return self.send_json(app.pick_folder(str(body.get("initial") or "")))
+                if path == "/api/quit":
+                    app.quit()
+                    return self.send_json({"ok": True})
                 if path == "/api/rescan":
                     lib.folder_sig = None
                     lib.refresh(wait=3)
@@ -395,6 +405,8 @@ def serve(port, background=False, open_browser=True):
     if httpd is None:
         sys.exit("Couldn't start Cliptrove.")
     app = App(httpd.server_port)
+    app.httpd = httpd
+    app.background = background
     httpd.RequestHandlerClass = make_handler(app)
     app.start()
     app.media.clean_cache()

@@ -1109,6 +1109,7 @@ function renderSettings(fetched) {
     + `<span>Your data</span><span class="mono" title="${esc(s.dataDir)}">${esc(s.dataDir)}</span><button class="btn sm" type="button" data-act="open-data">${ic('folder')} Open</button>`
     + `<span>Cover pictures</span><span class="mono" title="${esc(s.coversDir)}">${esc(s.coversDir)}</span><button class="btn sm" type="button" data-act="open-covers">${ic('folder')} Open</button>`
     + `<span>Version</span><span>Cliptrove ${esc(s.appVersion)}</span><button class="btn sm" type="button" data-act="rescan">${ic('refresh')} Look for new clips</button>`
+    + `<span>Running</span><span class="dim">${s.background ? 'In the background' + (s.autostart.enabled ? ', and it starts with Windows' : '') : 'Until a few minutes after you close this tab'}</span><button class="btn sm" type="button" data-act="quit">${ic('power')} Quit Cliptrove</button>`
     + '</div></section>';
 }
 const setFolders = () => setInfo.folders.map(f => ({path: f.path, recorder: f.recorder, enabled: f.enabled}));
@@ -1173,6 +1174,11 @@ $('setBody').addEventListener('click', async e => {
     saveSettings({exportDir: ''}, 'Back to the default folder');
   } else if (act.startsWith('open-')) {
     post('/api/open', {what: act.slice(5)}).catch(err => toast(err.message, true));
+  } else if (act === 'quit') {
+    if (!confirm('Quit Cliptrove? This page stops working until you start it again (Cliptrove.exe, or the next time you sign in if it starts with Windows).')) return;
+    try { await post('/api/quit', {}); } catch (err) { toast(err.message, true); return; }
+    showBanner('Cliptrove has stopped. Start it again with Cliptrove.exe.', 'stopped');
+    window.scrollTo({top: 0, behavior: 'smooth'});
   } else if (act === 'rescan') {
     b.disabled = true;
     try {
