@@ -658,6 +658,31 @@ class Library:
                 "suggestions": settings.detect(skip), "exportDir": export, "total": total,
                 "scan": self.scan_status()}
 
+    def setup_info(self):
+        """What the first-start setup needs: is GG here, and which recorders' folders are on this PC."""
+        with self.lock:
+            gg_info = {"installed": gg.installed(), "clips": self.gg_info.get("clips", 0), "folder": self.gg_dir}
+        return {"gg": gg_info, "found": settings.detect(include_empty=True), "videosDir": settings.videos_dir()}
+
+    def finish_setup(self, body):
+        """Save what was picked in the first-start setup (or just remember it was skipped)."""
+        with self.lock:
+            cfg = dict(self.cfg, sources=dict(self.cfg["sources"]), setupDone=True)
+            if not body.get("skip"):
+                folders = settings.clean_folders(body.get("folders"))
+                for f in folders:
+                    if not os.path.isdir(f["path"]):
+                        raise ValueError(f"Can't find the folder {f['path']}")
+                cfg["sources"]["gg"] = {"enabled": bool(body.get("gg"))}
+                cfg["sources"]["folders"] = folders
+            cfg = settings.normalize(cfg)
+            settings.save(cfg)
+            self.cfg = cfg
+            self.folder_sig = None
+        if not body.get("skip"):
+            self.refresh(wait=3)
+        return {"total": len(self.clips), "scan": self.scan_status()}
+
     def update_settings(self, body):
         """Change where clips come from and where copies go; the library is re-read straight away."""
         with self.lock:
@@ -673,6 +698,7 @@ class Library:
                 cfg["sources"]["folders"] = folders
             if "exportDir" in body:
                 cfg["exportDir"] = str(body.get("exportDir") or "")
+            cfg["setupDone"] = True  # changing settings by hand counts as having set things up
             cfg = settings.normalize(cfg)
             settings.save(cfg)
             self.cfg = cfg

@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.4.0] - 2026-10-13
+
+- **First-start setup.** The first time Cliptrove starts, it asks which apps you record clips with (SteelSeries GG, NVIDIA, AMD, Xbox Game Bar, OBS, Medal or any folder), with the apps it finds on your PC already ticked. Then it asks where each one saves its clips, with found folders filled in. It also offers Start with Windows and checks for ffmpeg. It only appears once, and you can skip it.
+
 ## [0.3.0] - 2026-10-13
 
 The first public release.

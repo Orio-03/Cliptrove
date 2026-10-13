@@ -1197,6 +1197,137 @@ $('setBody').addEventListener('submit', e => {
   if (p) addFolder(p);
 });
 
+// ---------- first-start setup ----------
+// Shown once, the first time Cliptrove starts (no settings saved yet): which apps you clip with, and where.
+const SETUP_APPS = [
+  {id: 'gg', name: 'SteelSeries GG', sub: 'Moments', hint: 'Read straight from GG’s own library, so there’s no folder to pick.'},
+  {id: 'nvidia', name: 'NVIDIA', sub: 'ShadowPlay / NVIDIA App', hint: 'Usually Videos\\NVIDIA, or a folder per game in Videos.'},
+  {id: 'amd', name: 'AMD', sub: 'Radeon ReLive / Adrenalin', hint: 'Usually Videos\\Radeon ReLive.'},
+  {id: 'xbox', name: 'Xbox Game Bar', sub: 'Win + G', hint: 'Usually Videos\\Captures.'},
+  {id: 'obs', name: 'OBS Studio', sub: 'Recordings and replays', hint: 'Shown in OBS under Settings > Output > Recording Path.'},
+  {id: 'medal', name: 'Medal', sub: 'Medal.tv', hint: 'Shown in Medal’s settings.'},
+  {id: 'other', name: 'Something else', sub: 'Any folder of videos', hint: 'Any folder with your clips in it.'},
+];
+const su = {step: 0, info: null, picked: new Set(), paths: {}, autostart: false, busy: false, error: ''};
+const foundFor = id => (su.info ? su.info.found.filter(f => f.recorder === id).sort((a, b) => b.videos - a.videos) : []);
+const needsFolder = () => SETUP_APPS.map(a => a.id).filter(id => id !== 'gg' && su.picked.has(id));
+const appName = id => SETUP_APPS.find(a => a.id === id).name;
+async function openSetup() {
+  $('setup').hidden = false;
+  document.body.classList.add('noscroll');
+  $('setupBody').innerHTML = '<p class="setup-lead">Looking for the apps you record with…</p>';
+  $('setupNext').disabled = true;
+  try { su.info = await getJSON('/api/setup'); }
+  catch (e) { $('setupBody').innerHTML = `<p class="setup-err">${esc(e.message)}</p>`; return; }
+  // Start with what's on this PC already ticked
+  if (su.info.gg.installed) su.picked.add('gg');
+  for (const a of SETUP_APPS) {
+    const f = foundFor(a.id);
+    if (f.length) { su.paths[a.id] = f[0].path; if (f[0].videos > 0) su.picked.add(a.id); }
+  }
+  renderSetup();
+  $('setupCard').focus({preventScroll: true});
+}
+function closeSetup() { $('setup').hidden = true; document.body.classList.remove('noscroll'); }
+function renderSetup() {
+  $('setupDots').querySelectorAll('i').forEach((d, i) => d.classList.toggle('on', i <= su.step));
+  $('setupBack').hidden = su.step === 0;
+  $('setupNext').textContent = su.step === 2 ? 'Finish' : 'Next';
+  $('setupNext').disabled = su.busy || (su.step === 0 && !su.picked.size);
+  const body = $('setupBody');
+  if (su.step === 0) {
+    body.innerHTML = '<h2 id="setupTitle">Welcome to Cliptrove</h2><p class="setup-lead">Which apps do you record clips with? Pick all that apply.</p><div class="apps">'
+      + SETUP_APPS.map(a => {
+        const f = foundFor(a.id), gg = a.id === 'gg' ? su.info.gg : null;
+        const status = gg ? (gg.installed ? 'Found on this PC' + (gg.clips ? ` · ${plural(gg.clips, 'clip', 'clips')}` : '') : 'Not installed')
+          : f.length ? `Found · ${f[0].videos >= 500 ? '500+ videos' : plural(f[0].videos, 'video', 'videos')}` : '';
+        const on = su.picked.has(a.id), off = gg && !gg.installed;
+        return `<button type="button" class="app${on ? ' on' : ''}" data-app="${a.id}" aria-pressed="${on}"${off ? ' disabled' : ''}>`
+          + `<span class="app-check">${ic('check')}</span><b>${esc(a.name)}</b><span>${esc(a.sub)}</span>`
+          + (status ? `<em class="${status.startsWith('Found') ? 'ok' : ''}">${esc(status)}</em>` : '') + '</button>';
+      }).join('') + '</div>';
+  } else if (su.step === 1) {
+    const ids = needsFolder();
+    body.innerHTML = '<h2 id="setupTitle">Where are your clips?</h2>'
+      + `<p class="setup-lead">${ids.length ? 'Pick the folder each app saves its clips to. You can add more folders later in Settings.' : 'Nothing to pick here.'}</p>`
+      + (su.error ? `<p class="setup-err">${esc(su.error)}</p>` : '')
+      + ids.map(id => {
+        const a = SETUP_APPS.find(x => x.id === id);
+        return `<div class="where" data-app="${id}"><div class="where-top"><b>${esc(a.name)}</b><span class="dim">${esc(a.hint)}</span></div>`
+          + `<div class="row nowrap"><input class="input" data-path value="${esc(su.paths[id] || '')}" placeholder="Choose a folder, or paste its path" spellcheck="false" aria-label="${esc(a.name)} clips folder">`
+          + `<button class="btn sm" type="button" data-pick>${ic('folder')} Choose…</button></div></div>`;
+      }).join('')
+      + (su.picked.has('gg') ? '<p class="note">SteelSeries GG is read straight from its own library, so it needs no folder.</p>' : '');
+  } else {
+    const auto = su.info.autostart;
+    body.innerHTML = '<h2 id="setupTitle">Almost done</h2><p class="setup-lead">Two optional extras. You can change both later.</p>'
+      + (auto.supported ? `<div class="srow"><span class="sic">${ic('power')}</span><div class="stxt"><b>Start with Windows</b><span class="sub">Cliptrove runs quietly in the background, so <span class="mono">http://127.0.0.1:${su.info.port}</span> always works.</span></div>${toggle('suAuto', su.autostart, false, 'Start with Windows')}</div>` : '')
+      + (su.info.ffmpeg
+        ? `<div class="srow"><span class="sic">${ic('check')}</span><div class="stxt"><b>ffmpeg is installed</b><span class="sub">Thumbnails, separate Chat/Mic audio and saving edited copies are on.</span></div></div>`
+        : `<div class="srow"><span class="sic">${ic('film')}</span><div class="stxt"><b>Install ffmpeg (recommended)</b><span class="sub">It’s free, and adds thumbnails, separate Chat/Mic audio, .mkv playback and saving edited copies. Open PowerShell, run this, then restart Cliptrove:</span>`
+          + '<div class="cmd"><code>winget install Gyan.FFmpeg</code><button class="btn sm" type="button" data-copy="winget install Gyan.FFmpeg">Copy</button></div></div></div>');
+  }
+}
+$('setupBody').addEventListener('click', async e => {
+  const app = e.target.closest('button[data-app]');
+  if (app) {
+    const id = app.dataset.app;
+    if (su.picked.has(id)) su.picked.delete(id); else su.picked.add(id);
+    renderSetup();
+    return;
+  }
+  const pick = e.target.closest('[data-pick]');
+  if (pick) {
+    const row = pick.closest('.where'), input = row.querySelector('[data-path]');
+    const p = await pickFolder(input.value || su.info.videosDir);
+    if (p) { su.paths[row.dataset.app] = p; input.value = p; }
+    return;
+  }
+  const copy = e.target.closest('[data-copy]');
+  if (copy) {
+    try { await navigator.clipboard.writeText(copy.dataset.copy); toast('Copied'); } catch (err) { toast('Select the command and copy it', true); }
+  }
+});
+$('setupBody').addEventListener('input', e => {
+  const row = e.target.closest('.where');
+  if (row) su.paths[row.dataset.app] = e.target.value.trim().replace(/^"|"$/g, '');
+});
+$('setupBody').addEventListener('change', e => { if (e.target.id === 'suAuto') su.autostart = e.target.checked; });
+$('setupBack').onclick = () => { su.step = Math.max(0, su.step - 1); su.error = ''; renderSetup(); };
+$('setupNext').onclick = async () => {
+  if (su.step === 1) {
+    const missing = needsFolder().filter(id => !su.paths[id]);
+    if (missing.length) {
+      su.error = `Choose a folder for ${missing.map(appName).join(' and ')}, or go back and untick ${missing.length === 1 ? 'it' : 'them'}.`;
+      renderSetup();
+      return;
+    }
+    su.error = '';
+  }
+  if (su.step < 2) { su.step++; renderSetup(); return; }
+  su.busy = true;
+  renderSetup();
+  $('setupNext').textContent = 'Setting up…';
+  try {
+    const r = await post('/api/setup', {
+      gg: su.picked.has('gg'), autostart: su.autostart,
+      folders: needsFolder().map(id => ({path: su.paths[id], recorder: id === 'other' ? 'auto' : id})),
+    });
+    const reading = r.scan && r.scan.pending ? `, and reading ${plural(r.scan.pending, 'more file', 'more files')}` : '';
+    $('setupBody').innerHTML = `<h2 id="setupTitle">You’re all set</h2><p class="setup-lead">${r.total ? `Found ${plural(r.total, 'clip', 'clips')}${reading}` : 'No clips found yet'}. Loading your library…</p>`;
+    setTimeout(() => location.reload(), 1200);
+  } catch (err) {
+    su.busy = false;
+    su.step = 1;
+    su.error = err.message;
+    renderSetup();
+  }
+};
+$('setupSkip').onclick = async () => {
+  try { await post('/api/setup', {skip: true}); } catch (err) { /* it will simply show again next time */ }
+  closeSetup();
+};
+
 // ---------- player ----------
 const vid = $('vid'), stage = $('stage'), tl = $('tl');
 const E = {};
@@ -1763,6 +1894,7 @@ $('bReveal').onclick = async () => { try { await post('/api/reveal', {id: cur.id
 
 // Keyboard
 document.addEventListener('keydown', e => {
+  if (!$('setup').hidden) return;  // the first-start setup handles its own keys
   const tag = e.target.tagName, type = e.target.type;
   const typing = tag === 'TEXTAREA' || (tag === 'INPUT' && type !== 'range' && type !== 'checkbox');
   if (!cur) {
@@ -1799,4 +1931,5 @@ setThemeIcon();
 renderLog();
 buildHero();
 route(true);
+if (META.firstRun) openSetup();
 })();
