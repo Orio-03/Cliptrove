@@ -24,6 +24,7 @@
 
 <p align="center">
   <a href="https://github.com/Th30utcast/Cliptrove/releases/latest"><img alt="Latest release" src="https://img.shields.io/github/v/release/Th30utcast/Cliptrove?label=download&color=07f2cc"></a>
+  <a href="https://github.com/Th30utcast/Cliptrove/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/Th30utcast/Cliptrove/actions/workflows/ci.yml/badge.svg"></a>
   <img alt="Windows 10 and 11" src="https://img.shields.io/badge/Windows-10%20%7C%2011-555">
   <a href="LICENSE.md"><img alt="License: PolyForm Noncommercial" src="https://img.shields.io/badge/license-PolyForm%20Noncommercial-555"></a>
 </p>

@@ -9,7 +9,6 @@ import time
 
 from . import analytics, covers, paths, settings
 from .sources import folder, gg
-from .sources.folder import UNSORTED
 from .util import clip_id, iso_time, load_json, norm, now_iso, path_key, safe_name, save_json
 
 INDEX_VERSION = 1
@@ -70,7 +69,9 @@ class Library:
         self.lock = threading.RLock()
         self.cfg = settings.load()
         self.state = load_state()
-        idx = load_json(paths.INDEX, {})
+        # This library's own files, fixed when it starts (so it never writes anywhere else)
+        self.library_file, self.index_file = paths.LIBRARY, paths.INDEX
+        idx = load_json(self.index_file, {})
         self.index = idx.get("files", {}) if isinstance(idx, dict) and idx.get("version") == INDEX_VERSION else {}
         self.clips, self.ids = {}, {}
         self.covers, self.own_covers, self.game_names = {}, {}, {}
@@ -85,6 +86,7 @@ class Library:
         self.wake = threading.Event()
         self.edits, self.edit_prefix = {}, {}
         self.last_seen = 0.0
+        self.stopped = False
         self.forecast = (None, None)  # (what it was worked out from, result)
 
     # ----- reading the sources -----
@@ -140,7 +142,9 @@ class Library:
     def _scan_folders(self, clips):
         taken = {path_key(c["file"]) for c in clips.values()}
         exclude = {path_key(self.export_dir())}
-        by_time = {(e.get("size"), int(e.get("mtime") or 0)): pk for pk, e in self.index.items()}
+        by_time = collections.defaultdict(list)  # (size, time) -> files with them, to recognise renamed files
+        for pk, e in self.index.items():
+            by_time[(e.get("size"), int(e.get("mtime") or 0))].append(pk)
         seen, counts, new = set(), {}, []
         for f in self.cfg["sources"]["folders"]:
             if not f["enabled"]:
@@ -181,8 +185,10 @@ class Library:
         size, mtime = st.st_size, int(st.st_mtime)
         if not e:
             # Renamed or moved? A file that's gone with the same size and time is the same clip.
-            old = by_time.get((size, mtime))
-            if old and old in self.index and not os.path.exists(self.index[old].get("path", "")):
+            gone = [o for o in by_time.get((size, mtime), ())
+                    if o in self.index and not os.path.exists(self.index[o].get("path", ""))]
+            old = gone[0] if gone else None
+            if old:
                 e = self.index.pop(old)
                 e["path"] = path
                 self.index[pk] = e
@@ -256,11 +262,11 @@ class Library:
         return changes
 
     def _save_state(self):
-        save_json(paths.LIBRARY, self.state, indent=1)
+        save_json(self.library_file, self.state, indent=1)
 
     def _save_index(self):
         try:
-            save_json(paths.INDEX, {"version": INDEX_VERSION, "files": self.index})
+            save_json(self.index_file, {"version": INDEX_VERSION, "files": self.index})
         except OSError:
             pass
 
@@ -272,12 +278,14 @@ class Library:
     def work(self):
         """Background thread: read new files with ffprobe (newest first), then look for new clips now and then
         while the site is open."""
-        while True:
+        while not self.stopped:
             self.wake.wait(30)
             self.wake.clear()
+            if self.stopped:
+                return
             done = 0
             last_save = time.time()
-            while True:
+            while not self.stopped:
                 with self.lock:
                     if not self.queue:
                         break
@@ -321,6 +329,11 @@ class Library:
                 self._make_thumbs()
             if time.time() - self.last_seen < 120:
                 self._check_for_new()
+
+    def stop(self):
+        """End the background thread (used when Cliptrove stops, and by the tests)."""
+        self.stopped = True
+        self.wake.set()
 
     def _recorder_of(self, root):
         for f in self.cfg["sources"]["folders"]:

@@ -4,6 +4,7 @@ import shutil
 import tempfile
 import unittest
 
+import support  # noqa: F401  (keeps the test run in temporary folders)
 from cliptrove import paths, settings
 
 

@@ -1,0 +1,19 @@
+# Settings for the tools the checks use. Cliptrove itself needs nothing beyond Python's standard library.
+
+[tool.ruff]
+line-length = 120
+target-version = "py310"
+
+[tool.ruff.lint]
+# Syntax errors, undefined names, unused imports and variables, and a few common bugs
+select = ["E9", "F", "W6", "B006", "B008", "B017", "B023"]
+
+[tool.coverage.run]
+branch = true
+source = ["cliptrove"]
+omit = ["cliptrove/__main__.py"]
+
+[tool.coverage.report]
+show_missing = true
+skip_covered = true
+exclude_also = ["if __name__ == .__main__.:"]

@@ -245,10 +245,12 @@ class Media:
     def start_export(self, src, out_dir, stem, replace, start, end, volumes, precise, loud, small):
         """Save part of a clip as a new video in out_dir (or over `replace`); returns a job id to follow."""
         if not self.ffmpeg:
-            raise RuntimeError("Saving edited copies needs ffmpeg")
+            raise ValueError("Saving edited copies needs ffmpeg")
         start, end = float(start), float(end)
         if not (0 <= start < end) or end - start < 0.2:
             raise ValueError("Pick a start and end at least 0.2 seconds apart")
+        if not os.path.isfile(src):
+            raise LookupError("That clip's file isn't there any more")
         count = self.audio_count(src)
         vols = [min(4.0, max(0.0, float(v))) for v in list(volumes)[:count]]
         vols += [1.0] * (count - len(vols))
