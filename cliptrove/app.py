@@ -1,4 +1,4 @@
-"""Starting ClipShelf: python -m clipshelf (or double-click ClipShelf.bat / ClipShelf.pyw)."""
+"""Starting Cliptrove: python -m cliptrove (or double-click Cliptrove.bat / Cliptrove.pyw)."""
 import argparse
 import os
 import sys
@@ -8,7 +8,7 @@ from . import APP_NAME, __version__, paths
 
 
 def main(argv=None):
-    ap = argparse.ArgumentParser(prog="clipshelf", description=f"{APP_NAME} {__version__}: a local library for "
+    ap = argparse.ArgumentParser(prog="cliptrove", description=f"{APP_NAME} {__version__}: a local library for "
                                  "your game clips. Opens in your browser at http://127.0.0.1:48650")
     ap.add_argument("--background", action="store_true",
                     help="run without stopping when the tab is closed and don't open the browser "
@@ -19,6 +19,8 @@ def main(argv=None):
     args = ap.parse_args(argv)
     if args.data_dir:
         paths.configure(args.data_dir)
+    else:
+        moved = paths.adopt_legacy()
 
     if sys.stdout is None or args.background:  # no window to print to: keep a small log instead
         os.makedirs(paths.DATA, exist_ok=True)
@@ -31,6 +33,8 @@ def main(argv=None):
     sys.stdout.reconfigure(errors="replace")
     from .util import now_iso
     print(f"--- {APP_NAME} {__version__}, {now_iso()}")
+    if not args.data_dir and moved:
+        print(f"Moved your data from {moved} to {paths.DATA}")
 
     from . import settings
     from .server import running, serve

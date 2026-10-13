@@ -1,22 +1,39 @@
-"""Where ClipShelf keeps its settings, what you add to your clips, and its caches.
+"""Where Cliptrove keeps its settings, what you add to your clips, and its caches.
 
-Everything lives in one data folder (on Windows %LOCALAPPDATA%\\ClipShelf). Set CLIPSHELF_DATA or pass
+Everything lives in one data folder (on Windows %LOCALAPPDATA%\\Cliptrove). Set CLIPTROVE_DATA or pass
 --data-dir to use another one. Your clip files themselves are never moved or changed.
 """
 import os
 import sys
 
+LEGACY_NAMES = ("ClipShelf",)  # what the app (and its data folder) used to be called
+
 
 def default_data_dir():
-    env = os.environ.get("CLIPSHELF_DATA")
+    env = os.environ.get("CLIPTROVE_DATA")
     if env:
         return os.path.abspath(env)
     if sys.platform == "win32":
         base = os.environ.get("LOCALAPPDATA") or os.path.join(os.path.expanduser("~"), "AppData", "Local")
-        return os.path.join(base, "ClipShelf")
+        return os.path.join(base, "Cliptrove")
     if sys.platform == "darwin":
-        return os.path.expanduser("~/Library/Application Support/ClipShelf")
-    return os.path.join(os.environ.get("XDG_DATA_HOME") or os.path.expanduser("~/.local/share"), "clipshelf")
+        return os.path.expanduser("~/Library/Application Support/Cliptrove")
+    return os.path.join(os.environ.get("XDG_DATA_HOME") or os.path.expanduser("~/.local/share"), "cliptrove")
+
+
+def adopt_legacy():
+    """Earlier versions kept their data under an older name: move it to the current folder (once)."""
+    if os.environ.get("CLIPTROVE_DATA") or os.path.exists(DATA):
+        return None
+    for name in LEGACY_NAMES:
+        old = os.path.join(os.path.dirname(DATA), name)
+        if os.path.isdir(old):
+            try:
+                os.replace(old, DATA)
+                return old
+            except OSError:
+                return None
+    return None
 
 
 def configure(data_dir=None):
@@ -31,7 +48,7 @@ def configure(data_dir=None):
     THUMBS = os.path.join(CACHE, "thumbs")
     AUDIO = os.path.join(CACHE, "audio")  # Chat/Mic tracks pulled out of clips
     VIDEO = os.path.join(CACHE, "video")  # .mkv and similar clips repackaged as .mp4 so the browser can play them
-    LOG = os.path.join(DATA, "clipshelf.log")  # used when ClipShelf runs in the background (no window)
+    LOG = os.path.join(DATA, "cliptrove.log")  # used when Cliptrove runs in the background (no window)
 
 
 configure()

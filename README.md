@@ -1,12 +1,12 @@
-# ClipShelf
+# Cliptrove
 
 A local library for your game clips. Browse them by game, watch them, give them nicknames, mix their audio
-tracks, trim them and save edited copies, all in your browser. ClipShelf runs on your own PC: nothing is
+tracks, trim them and save edited copies, all in your browser. Cliptrove runs on your own PC: nothing is
 uploaded, and your clip files are never moved or changed.
 
 It works with clips from:
 
-| Recorder | How ClipShelf reads it |
+| Recorder | How Cliptrove reads it |
 | --- | --- |
 | **SteelSeries GG** (Moments) | Straight from GG's library: titles, stars, trims and Game/Chat/Mic levels |
 | **NVIDIA** (ShadowPlay / NVIDIA App) | Folder: `Game 2024.06.16 - 23.06.36.02.DVR.mp4` in a folder per game |
@@ -22,7 +22,7 @@ It works with clips from:
 - **Player** with keyboard shortcuts, frame stepping, loop and speed control
 - **Audio mixer**: set the volume of each recorded track (Game, Chat, Mic...) up to 200%, remembered per clip
 - **Nicknames** for clips (GG's own titles are tracked in a change log too)
-- **Stars, trims and games** for any clip, kept by ClipShelf
+- **Stars, trims and games** for any clip, kept by Cliptrove
 - **Save edited copies**: trimmed, with your audio mix, in original quality or compressed under 18 MB for
   Discord. They appear in an **Edited** tab, where further edits overwrite the copy unless you say otherwise
 - **Analytics**: what you played week by week, your top games, when you play, a clip calendar, and which games
@@ -34,7 +34,7 @@ It works with clips from:
 ## Requirements
 
 - Windows 10 or 11 (macOS and Linux should work, except starting with Windows; not tested yet)
-- [Python](https://www.python.org/downloads/) 3.10 or newer. ClipShelf uses only Python's standard library
+- [Python](https://www.python.org/downloads/) 3.10 or newer. Cliptrove uses only Python's standard library
 - [ffmpeg](https://ffmpeg.org/), for Chat/Mic audio, thumbnails of folder clips, .mkv playback and saving copies.
   On Windows: `winget install Gyan.FFmpeg`. Without it, clips still play
 - Chrome or Edge recommended. Firefox can't play HEVC clips
@@ -42,13 +42,13 @@ It works with clips from:
 ## Getting started
 
 1. Download this repository (Code > Download ZIP) and unzip it anywhere, or `git clone` it.
-2. Double-click **ClipShelf.bat**. Your browser opens at <http://127.0.0.1:48650>.
-3. On the first run, open **Settings** (the gear at the top right). Add your clip folders; ClipShelf suggests the
+2. Double-click **Cliptrove.bat**. Your browser opens at <http://127.0.0.1:48650>.
+3. On the first run, open **Settings** (the gear at the top right). Add your clip folders; Cliptrove suggests the
    ones it finds for NVIDIA, AMD, Xbox Game Bar and OBS. SteelSeries GG is picked up on its own.
-4. Optional: in Settings, turn on **Start with Windows**, so ClipShelf runs in the background and the site is
+4. Optional: in Settings, turn on **Start with Windows**, so Cliptrove runs in the background and the site is
    always there.
 
-From a terminal you can also run `python -m clipshelf`. Options:
+From a terminal you can also run `python -m cliptrove`. Options:
 
 ```
 --background    keep running when the tab is closed, and don't open the browser
@@ -59,7 +59,7 @@ From a terminal you can also run `python -m clipshelf`. Options:
 
 ## Where things are kept
 
-Everything ClipShelf stores is in one folder, `%LOCALAPPDATA%\ClipShelf` on Windows (Settings > About has a
+Everything Cliptrove stores is in one folder, `%LOCALAPPDATA%\Cliptrove` on Windows (Settings > About has a
 button to open it):
 
 | File | What's in it |
@@ -76,15 +76,15 @@ one in Settings.
 ## Privacy
 
 The site only listens on 127.0.0.1, so other devices can't reach it. Every request needs a token that only the
-page has, so other websites open in your browser can't use it either. ClipShelf only goes online to fetch cover
+page has, so other websites open in your browser can't use it either. Cliptrove only goes online to fetch cover
 art from Steam (it sends only game names and Steam app IDs), and the page loads its fonts (Geist and Space
 Grotesk) from Google Fonts. Analytics and predictions are worked out on your PC.
 
 ## Notes
 
-- ClipShelf isn't made by or affiliated with SteelSeries, NVIDIA, AMD, Microsoft, OBS or Medal.
+- Cliptrove isn't made by or affiliated with SteelSeries, NVIDIA, AMD, Microsoft, OBS or Medal.
 - SteelSeries GG's library format isn't documented. A GG update could change it. If that happens, GG clips stop
-  showing up until ClipShelf is updated; nothing else is affected.
+  showing up until Cliptrove is updated; nothing else is affected.
 
 ## Development
 
@@ -92,7 +92,7 @@ Grotesk) from Google Fonts. Analytics and predictions are worked out on your PC.
 python -m unittest discover tests
 ```
 
-The code is in `clipshelf/`:
+The code is in `cliptrove/`:
 
 - `sources/` reads each recorder (`gg.py`, `folder.py`).
 - `names.py` works out the game and date from file names.

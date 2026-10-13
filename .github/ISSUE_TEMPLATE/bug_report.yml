@@ -1,0 +1,33 @@
+name: Something isn't working
+description: Report a bug in Cliptrove
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting! **Everything here is public**, so please don't paste your username, full folder paths, or anything else personal. Replace them with something like `C:\Users\you\Videos`.
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened?
+      description: What did you do, what did you expect, and what happened instead?
+    validations:
+      required: true
+  - type: dropdown
+    id: recorder
+    attributes:
+      label: Which recorder made the clips?
+      multiple: true
+      options: [SteelSeries GG, NVIDIA, AMD, Xbox Game Bar, OBS, Medal, Other / not relevant]
+  - type: input
+    id: version
+    attributes:
+      label: Cliptrove version
+      description: Shown in Settings > About
+      placeholder: "0.3.0"
+  - type: textarea
+    id: log
+    attributes:
+      label: Log (optional)
+      description: The last lines of cliptrove.log (Settings > About > Your data > Open). Check it for personal paths first.
+      render: text

@@ -25,8 +25,8 @@ WEB = os.path.join(os.path.dirname(os.path.abspath(__file__)), "web")
 STATIC = {"/app.js": ("app.js", "text/javascript; charset=utf-8"),
           "/app.css": ("app.css", "text/css; charset=utf-8"),
           "/favicon.svg": ("favicon.svg", "image/svg+xml")}
-IDLE_EXIT = 300  # seconds without the browser tab checking in before a window-run ClipShelf stops
-PING_NAME = "clipshelf"
+IDLE_EXIT = 300  # seconds without the browser tab checking in before a window-run Cliptrove stops
+PING_NAME = "cliptrove"
 
 
 def client_gone(sock):
@@ -75,7 +75,7 @@ class App:
         blob = blob.replace("</", "<\\/").replace("<!--", "<\\u0021--")
         with open(os.path.join(WEB, "index.html"), encoding="utf-8") as f:
             html = f.read()
-        return html.replace("__CLIPSHELF_DATA__", blob).replace("__V__", self.session)
+        return html.replace("__CLIPTROVE_DATA__", blob).replace("__V__", self.session)
 
     def ping(self):
         return {"app": PING_NAME, "session": self.session, "version": self.library.version,
@@ -371,7 +371,7 @@ def watchdog(app, httpd):
         time.sleep(10)
         idle = time.time() - app.last_seen
         if not app.media.busy() and ((app.page_loaded and idle > IDLE_EXIT) or (not app.page_loaded and idle > 600)):
-            print("The tab was closed, so ClipShelf has stopped.")
+            print("The tab was closed, so Cliptrove has stopped.")
             httpd.shutdown()
             return
 
@@ -393,7 +393,7 @@ def serve(port, background=False, open_browser=True):
         except OSError:
             continue
     if httpd is None:
-        sys.exit("Couldn't start ClipShelf.")
+        sys.exit("Couldn't start Cliptrove.")
     app = App(httpd.server_port)
     httpd.RequestHandlerClass = make_handler(app)
     app.start()

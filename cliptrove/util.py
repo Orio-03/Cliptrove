@@ -1,4 +1,4 @@
-"""Small helpers shared by the rest of ClipShelf."""
+"""Small helpers shared by the rest of Cliptrove."""
 import datetime as dt
 import glob
 import hashlib

@@ -2,7 +2,7 @@
 
 Only game names and Steam app IDs are sent to Steam. Games Steam doesn't have (and games while you're offline)
 get a tile made from one of their clips instead. To use your own picture for a game, put an image named after
-the game (e.g. "VALORANT.jpg") in the covers folder in ClipShelf's data folder.
+the game (e.g. "VALORANT.jpg") in the covers folder in Cliptrove's data folder.
 """
 import json
 import os
@@ -26,7 +26,7 @@ STEAM_IDS = {norm(k): v for k, v in {
 
 
 def fetch_json(url, timeout=6):
-    req = urllib.request.Request(url, headers={"User-Agent": f"ClipShelf/{__version__}"})
+    req = urllib.request.Request(url, headers={"User-Agent": f"Cliptrove/{__version__}"})
     with urllib.request.urlopen(req, timeout=timeout) as r:
         return json.load(r)
 

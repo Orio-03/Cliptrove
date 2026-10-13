@@ -101,7 +101,7 @@ class Library:
         for f in self.cfg["sources"]["folders"]:
             if f["enabled"]:
                 return os.path.join(f["path"], "Edited Clips")
-        return os.path.join(settings.videos_dir(), "ClipShelf", "Edited Clips")
+        return os.path.join(settings.videos_dir(), "Cliptrove", "Edited Clips")
 
     def refresh(self, wait=0.0):
         """Re-read every source. Returns the GG title changes found. With `wait`, give newly found files up to

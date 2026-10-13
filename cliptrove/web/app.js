@@ -2,11 +2,12 @@
 'use strict';
 const D = JSON.parse(document.getElementById('data').textContent);
 const META = D.meta, TOKEN = META.token || '';
-const AUDIO = !!META.ffmpeg;  // extra tracks (Chat, Mic...) can be played: ClipShelf pulls them out of the clip
+const AUDIO = !!META.ffmpeg;  // extra tracks (Chat, Mic...) can be played: Cliptrove pulls them out of the clip
 const $ = id => document.getElementById(id);
 
 const P = {
   play: '<path d="M7 4.6v14.8a.6.6 0 0 0 .9.5l11.6-7.4a.6.6 0 0 0 0-1L7.9 4.1a.6.6 0 0 0-.9.5z" fill="currentColor" stroke="none"/>',
+  logo: '<rect x="6.5" y="3.6" width="11" height="2.3" rx="1.15" fill="currentColor" stroke="none" opacity=".35"/><rect x="4.7" y="6.9" width="14.6" height="2.7" rx="1.35" fill="currentColor" stroke="none" opacity=".6"/><rect x="3" y="10.5" width="18" height="10.2" rx="2.6" fill="currentColor" stroke="none"/><path d="M10.7 13.2v4.8a.5.5 0 0 0 .8.4l3.7-2.4a.5.5 0 0 0 0-.8l-3.7-2.4a.5.5 0 0 0-.8.4z" fill="var(--accent)" stroke="none"/>',
   pause: '<rect x="6" y="4.5" width="4" height="15" rx="1" fill="currentColor" stroke="none"/><rect x="14" y="4.5" width="4" height="15" rx="1" fill="currentColor" stroke="none"/>',
   prev: '<path d="M18 5.5v13L8.5 12z" fill="currentColor" stroke="none"/><path d="M6 5.5v13"/>',
   next: '<path d="M6 5.5v13l9.5-6.5z" fill="currentColor" stroke="none"/><path d="M18 5.5v13"/>',
@@ -76,12 +77,14 @@ function initials(g) {
   if (!w.length) return '?';
   return (w.length > 1 ? w[0][0] + w[1][0] : w[0].slice(0, 2)).toUpperCase();
 }
-const store = {  // settings kept in this browser (older ones were saved as "ggclips.*")
+const store = {  // settings kept in this browser (earlier versions saved them as "clipshelf.*" and "ggclips.*")
   get(k, d) {
-    try { let v = localStorage.getItem('clipshelf.' + k); if (v === null) v = localStorage.getItem('ggclips.' + k); return v === null ? d : v; }
-    catch (e) { return d; }
+    try {
+      for (const prefix of ['cliptrove.', 'clipshelf.', 'ggclips.']) { const v = localStorage.getItem(prefix + k); if (v !== null) return v; }
+      return d;
+    } catch (e) { return d; }
   },
-  set(k, v) { try { localStorage.setItem('clipshelf.' + k, v); } catch (e) {} },
+  set(k, v) { try { localStorage.setItem('cliptrove.' + k, v); } catch (e) {} },
 };
 let toastTimer;
 function toast(msg, err) {
@@ -247,16 +250,16 @@ $('bRefresh').onclick = () => location.reload();  // opening the page re-reads e
 let bannerKind = '';
 function showBanner(html, kind) { banner.innerHTML = html; banner.hidden = !html; bannerKind = html ? kind : ''; }
 if (!META.ffmpeg) showBanner('ffmpeg wasn’t found, so Chat/Mic audio, thumbnails for clips from folders and saving edited copies are off. '
-  + 'Install it (for example <span class="mono">winget install Gyan.FFmpeg</span>) and restart ClipShelf.', 'ffmpeg');
+  + 'Install it (for example <span class="mono">winget install Gyan.FFmpeg</span>) and restart Cliptrove.', 'ffmpeg');
 banner.addEventListener('click', e => { if (e.target.closest('[data-reload]')) location.reload(); });
-// Check in with ClipShelf: notices new clips, a restart, or ClipShelf having stopped
+// Check in with Cliptrove: notices new clips, a restart, or Cliptrove having stopped
 let misses = 0;
 async function ping() {
   let next = 20000;
   try {
     const r = await getJSON('/api/ping');
     misses = 0;
-    if (r.session !== META.session && !cur) { location.reload(); return; }  // ClipShelf was restarted
+    if (r.session !== META.session && !cur) { location.reload(); return; }  // Cliptrove was restarted
     const scan = r.scan || {};
     if (scan.pending > 0) {
       next = 2500;
@@ -266,7 +269,7 @@ async function ping() {
       if (bannerKind !== 'new') showBanner('Your clips have changed. <button class="btn sm primary" type="button" data-reload>Show the latest</button>', 'new');
     } else if (bannerKind === 'scan' || bannerKind === 'stopped') showBanner('', '');
   } catch (e) {
-    if (++misses === 2) showBanner('ClipShelf has stopped. Start it again from its shortcut or ClipShelf.bat, then refresh this page.', 'stopped');
+    if (++misses === 2) showBanner('Cliptrove has stopped. Start it again from its shortcut or Cliptrove.bat, then refresh this page.', 'stopped');
   }
   setTimeout(ping, next);
 }
@@ -734,7 +737,7 @@ $('logBody').addEventListener('click', e => { const b = e.target.closest('[data-
 
 // ---------- analytics ----------
 // A day counts as "played" when it has at least one clip of the game. Desktop recordings and unsorted clips
-// aren't games, so they're left out. Charts are drawn here; the predictions come from ClipShelf (/api/analytics).
+// aren't games, so they're left out. Charts are drawn here; the predictions come from Cliptrove (/api/analytics).
 const DAY_MS = 86400000;
 const NOT_GAMES = new Set(['desktop', 'unsorted', 'unknowngame']);
 const normName = s => String(s).toLowerCase().replace(/[^a-z0-9]+/g, '');
@@ -1088,7 +1091,7 @@ function renderSettings(fetched) {
     + `<button class="btn sm" type="button" data-act="suggest">${ic('plus')} Add</button></div>`).join('') + '</div>' : '';
   const scan = s.scan && s.scan.pending ? ` · reading ${plural(s.scan.pending, 'new file', 'new files')}…` : '';
   body.innerHTML = (setDirty ? `<div class="setdone">${ic('check')}<span>Saved. Your library now has ${plural(s.total, 'clip', 'clips')}${scan}.</span><a class="btn primary sm" href="#/">Show my clips</a></div>` : '')
-    + `<section class="sblock"><h3>Clip sources</h3><p class="hint">ClipShelf shows clips from SteelSeries GG and from any folders you add. Your files are never moved or changed.</p>`
+    + `<section class="sblock"><h3>Clip sources</h3><p class="hint">Cliptrove shows clips from SteelSeries GG and from any folders you add. Your files are never moved or changed.</p>`
     + `<div class="srow${ggOn ? '' : ' off'}"><span class="sic">${ic('pad')}</span><div class="stxt"><b>SteelSeries GG</b><span class="sub${gg.error && ggOn ? ' bad' : ''}">${ggSub}</span></div>${toggle('setGG', ggOn, !gg.installed, 'Show clips from SteelSeries GG')}</div>`
     + folders
     + `<div class="addrow"><button class="btn primary" type="button" data-act="pick">${ic('plus')} Add a folder…</button>`
@@ -1098,14 +1101,14 @@ function renderSettings(fetched) {
     + `<div class="srow"><span class="sic">${ic('save')}</span><div class="stxt"><span class="mono" title="${esc(s.exportDir.path)}">${esc(s.exportDir.path)}</span></div>`
     + `<button class="btn sm" type="button" data-act="export-pick">Change…</button>${s.exportDir.custom ? '<button class="btn sm" type="button" data-act="export-default">Use default</button>' : ''}`
     + `<button class="btn sm" type="button" data-act="open-export">${ic('folder')} Open</button></div></section>`
-    + `<section class="sblock"><h3>Start with Windows</h3><div class="srow"><span class="sic">${ic('power')}</span><div class="stxt"><b>Run ClipShelf in the background</b>`
+    + `<section class="sblock"><h3>Start with Windows</h3><div class="srow"><span class="sic">${ic('power')}</span><div class="stxt"><b>Run Cliptrove in the background</b>`
     + `<span class="sub">${s.autostart.supported ? `Starts when you sign in, so your clips are always at <span class="mono">http://127.0.0.1:${s.port}</span>. No window, and it does almost nothing while you’re not using it.` : 'Only available on Windows.'}</span></div>`
     + `${toggle('setAuto', s.autostart.enabled, !s.autostart.supported, 'Start with Windows')}</div></section>`
     + `<section class="sblock"><h3>About</h3><div class="kv">`
     + `<span>ffmpeg</span><span class="mono" title="${esc(s.ffmpeg || '')}">${s.ffmpeg ? esc(s.ffmpeg) : 'Not found: Chat/Mic audio, thumbnails for folder clips and saving copies are off'}</span><span></span>`
     + `<span>Your data</span><span class="mono" title="${esc(s.dataDir)}">${esc(s.dataDir)}</span><button class="btn sm" type="button" data-act="open-data">${ic('folder')} Open</button>`
     + `<span>Cover pictures</span><span class="mono" title="${esc(s.coversDir)}">${esc(s.coversDir)}</span><button class="btn sm" type="button" data-act="open-covers">${ic('folder')} Open</button>`
-    + `<span>Version</span><span>ClipShelf ${esc(s.appVersion)}</span><button class="btn sm" type="button" data-act="rescan">${ic('refresh')} Look for new clips</button>`
+    + `<span>Version</span><span>Cliptrove ${esc(s.appVersion)}</span><button class="btn sm" type="button" data-act="rescan">${ic('refresh')} Look for new clips</button>`
     + '</div></section>';
 }
 const setFolders = () => setInfo.folders.map(f => ({path: f.path, recorder: f.recorder, enabled: f.enabled}));
@@ -1139,7 +1142,7 @@ $('setBody').addEventListener('change', async e => {
     try {
       const r = await post('/api/autostart', {enabled: t.checked});
       setInfo.autostart.enabled = r.enabled;
-      toast(r.enabled ? 'ClipShelf will start with Windows' : 'ClipShelf won’t start with Windows any more');
+      toast(r.enabled ? 'Cliptrove will start with Windows' : 'Cliptrove won’t start with Windows any more');
     } catch (err) { t.checked = !t.checked; toast(err.message, true); }
     return;
   }
@@ -1219,7 +1222,7 @@ function openPlayer(id, from) {
   vid.addEventListener('loadedmetadata', () => {
     if (cur !== c) return;
     const d = dur();
-    if (!c.full && isFinite(vid.duration)) {  // not read yet by ClipShelf: use what the video says
+    if (!c.full && isFinite(vid.duration)) {  // not read yet by Cliptrove: use what the video says
       c.full = vid.duration;
       if (!c.trimmed) { c.end = c.full; c.len = c.full; }
       fillInfo();
@@ -1341,7 +1344,7 @@ function closeClip() {
 document.querySelectorAll('[data-close]').forEach(el => { el.onclick = closeClip; });
 
 // Audio mixer. The video element plays the first track (Game); the other tracks (Chat, Mic) are pulled out
-// of the clip by ClipShelf and played alongside it in sync, each with its own volume (up to 200%).
+// of the clip by Cliptrove and played alongside it in sync, each with its own volume (up to 200%).
 // GG clips always list Game, Chat and Mic; a track GG didn't record for that clip is shown as such.
 const STD = ['game', 'chat', 'mic'];
 function buildMix(c) {
@@ -1590,7 +1593,7 @@ function step(d) {
 $('bPrev').onclick = () => step(-1);
 $('bNext').onclick = () => step(1);
 
-// Star (ClipShelf's own; clips starred in GG stay starred)
+// Star (Cliptrove's own; clips starred in GG stay starred)
 async function toggleStar() {
   const c = cur;
   if (!c || c.edited || c.ggStar) return;
@@ -1720,7 +1723,7 @@ async function pollJob(job) {
     await new Promise(r => setTimeout(r, 600));
     let j;
     try { j = await getJSON(`/api/job/${job}`); misses = 0; }
-    catch (e) { if (++misses < 20) continue; j = {state: 'error', error: 'Lost contact with ClipShelf'}; }
+    catch (e) { if (++misses < 20) continue; j = {state: 'error', error: 'Lost contact with Cliptrove'}; }
     if (j.state === 'running') {
       setProg(j.progress || 0, `Saving… ${Math.round((j.progress || 0) * 100)}%` + (j.retry ? ' · making it a little smaller' : ''));
       continue;

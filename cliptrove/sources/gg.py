@@ -56,7 +56,7 @@ def parse_tracks(raw):
 def read():
     """({clip key: clip}, GG's clips folder). Raises OSError or sqlite3.Error if the library can't be read."""
     # Recent edits sit in the -wal file, which SQLite folds in when it opens the copy.
-    tmp = tempfile.mkdtemp(prefix="clipshelf-gg-")
+    tmp = tempfile.mkdtemp(prefix="cliptrove-gg-")
     try:
         for suffix in ("", "-wal"):
             if os.path.exists(DB + suffix):

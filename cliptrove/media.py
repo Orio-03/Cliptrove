@@ -1,4 +1,4 @@
-"""Everything ClipShelf does with ffmpeg: reading clips, thumbnails, Chat/Mic tracks, playable copies of .mkv
+"""Everything Cliptrove does with ffmpeg: reading clips, thumbnails, Chat/Mic tracks, playable copies of .mkv
 files, and saving edited copies. Without ffmpeg, clips still play; those extras are off."""
 import json
 import os

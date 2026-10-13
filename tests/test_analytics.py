@@ -2,7 +2,7 @@ import datetime as dt
 import random
 import unittest
 
-from clipshelf import analytics
+from cliptrove import analytics
 
 TODAY = dt.date(2026, 10, 13)
 

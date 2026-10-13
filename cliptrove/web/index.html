@@ -3,17 +3,17 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>ClipShelf</title>
+<title>Cliptrove</title>
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@300..800&family=Geist+Mono:wght@400..600&family=Space+Grotesk:wght@400..700&display=swap">
-<script>try{document.documentElement.dataset.theme=localStorage.getItem('clipshelf.theme')||localStorage.getItem('ggclips.theme')||'dark'}catch(e){document.documentElement.dataset.theme='dark'}</script>
+<script>try{document.documentElement.dataset.theme=localStorage.getItem('cliptrove.theme')||localStorage.getItem('clipshelf.theme')||localStorage.getItem('ggclips.theme')||'dark'}catch(e){document.documentElement.dataset.theme='dark'}</script>
 <link rel="stylesheet" href="/app.css?v=__V__">
 </head>
 <body>
 <header class="top">
-  <a class="brand" href="#/"><span class="logo" data-ic="play"></span><span>ClipShelf</span></a>
+  <a class="brand" href="#/"><span class="logo" data-ic="logo"></span><span>Cliptrove</span></a>
   <label class="search"><span data-ic="search"></span><input id="q" type="search" placeholder="Search titles, nicknames, games, files, dates   ( / )" autocomplete="off" spellcheck="false"></label>
   <nav class="tabs" id="tabs"><a href="#/" data-tab="home">Home</a><a href="#/edited" data-tab="edited">Edited <span class="pill" id="edPill"></span></a><a href="#/analytics" data-tab="analytics">Analytics</a><a href="#/log" data-tab="log">Change log <span class="pill" id="logCount"></span></a></nav>
   <div class="spacer"></div>
@@ -26,8 +26,8 @@
   <section id="homeView">
     <div class="welcome" id="welcome" hidden>
       <span class="welcome-ic" data-ic="film"></span>
-      <h2>Welcome to ClipShelf</h2>
-      <p>Tell ClipShelf where your clips are. It works with SteelSeries GG, NVIDIA, AMD, Xbox Game Bar, OBS, Medal, or any folder of videos. Your files stay where they are.</p>
+      <h2>Welcome to Cliptrove</h2>
+      <p>Tell Cliptrove where your clips are. It works with SteelSeries GG, NVIDIA, AMD, Xbox Game Bar, OBS, Medal, or any folder of videos. Your files stay where they are.</p>
       <a class="btn primary" href="#/settings" data-ic="plus">Add your clips</a>
     </div>
     <div class="hero" id="hero"></div>
@@ -245,7 +245,7 @@
   </div>
 </div>
 <div class="toast" id="toast" hidden></div>
-<script id="data" type="application/json">__CLIPSHELF_DATA__</script>
+<script id="data" type="application/json">__CLIPTROVE_DATA__</script>
 <script src="/app.js?v=__V__"></script>
 </body>
 </html>

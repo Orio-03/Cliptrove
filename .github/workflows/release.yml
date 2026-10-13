@@ -1,0 +1,61 @@
+name: Release
+
+# Push a tag like v0.3.0 to build Cliptrove.exe and publish it as a GitHub release.
+# Pull requests that change the packaging, and running it by hand, only build and test the app.
+on:
+  push:
+    tags: ["v*"]
+  pull_request:  # check that the app still builds when the packaging changes
+    paths: ["packaging/**", ".github/workflows/release.yml", "Cliptrove.pyw", "assets/**"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build the Windows app
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Unit tests
+        run: python -m unittest discover tests
+      - name: Install PyInstaller
+        run: python -m pip install -r packaging/requirements-build.txt
+      - name: Build
+        run: python packaging/build_windows.py
+      - name: Start it and check the site works
+        run: python packaging/smoke_test.py dist/Cliptrove/Cliptrove.exe
+      - name: Checksum
+        shell: pwsh
+        run: Get-ChildItem dist/*.zip | ForEach-Object { "$((Get-FileHash $_ -Algorithm SHA256).Hash.ToLower())  $($_.Name)" } | Set-Content dist/SHA256SUMS.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Cliptrove-windows
+          path: |
+            dist/*.zip
+            dist/SHA256SUMS.txt
+
+  publish:
+    name: Publish the release
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: Cliptrove-windows
+          path: dist
+      - name: Create the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          python3 packaging/release_notes.py "$GITHUB_REF_NAME" > notes.md
+          gh release create "$GITHUB_REF_NAME" dist/*.zip dist/SHA256SUMS.txt \
+            --title "Cliptrove ${GITHUB_REF_NAME#v}" --notes-file notes.md
