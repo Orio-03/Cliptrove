@@ -72,6 +72,7 @@ class App:
             "app": APP_NAME, "appVersion": __version__, "version": data.pop("version"),
             "scan": self.library.scan_status(), "started": data.pop("started"), "lastRun": data.pop("lastRun"),
             "sources": data.pop("sources"), "exportDir": data.pop("exportDir"),
+            "firstRun": not self.library.cfg.get("setupDone", True),
         }
         blob = json.dumps(data, ensure_ascii=False, separators=(",", ":"))
         blob = blob.replace("</", "<\\/").replace("<!--", "<\\u0021--")
@@ -139,6 +140,21 @@ class App:
         """Stop Cliptrove (after answering the page)."""
         print("Quit from the page.")
         threading.Timer(0.3, self.httpd.shutdown).start()
+
+    def setup_info(self):
+        info = self.library.setup_info()
+        info.update(ffmpeg=bool(self.media.ffmpeg), autostart={"supported": autostart.supported(),
+                                                               "enabled": autostart.enabled()}, port=self.port)
+        return info
+
+    def finish_setup(self, body):
+        result = self.library.finish_setup(body)
+        if body.get("autostart") and autostart.supported() and not autostart.enabled():
+            try:
+                autostart.enable()
+            except RuntimeError as e:
+                result["autostartError"] = str(e)
+        return result
 
     def set_autostart(self, on):
         if on:
@@ -237,6 +253,8 @@ def make_handler(app):
                     return self.send_json(app.media.jobs.get(parts[2]) or {"state": "error", "error": "Unknown job"})
                 if parts[:2] == ["api", "settings"]:
                     return self.send_json(app.settings_info())
+                if parts[:2] == ["api", "setup"]:
+                    return self.send_json(app.setup_info())
                 if parts[:2] == ["api", "analytics"]:
                     return self.send_json(app.library.predictions())
                 self.fail(404, "Not found")
@@ -289,6 +307,8 @@ def make_handler(app):
                 if path == "/api/settings":
                     lib.update_settings(body)
                     return self.send_json(app.settings_info())
+                if path == "/api/setup":
+                    return self.send_json(app.finish_setup(body))
                 if path == "/api/autostart":
                     return self.send_json(app.set_autostart(bool(body.get("enabled"))))
                 if path == "/api/pick-folder":

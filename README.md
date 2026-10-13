@@ -73,14 +73,17 @@ Open the [**latest release**](https://github.com/Th30utcast/Cliptrove/releases/l
 
 Your browser opens Cliptrove at **http://127.0.0.1:48650**. This address only works on your own PC.
 
-![The welcome screen with an "Add your clips" button](docs/images/welcome.webp)
+### 3. Tell Cliptrove what you record with
 
-### 3. Add your clips
+The first time it starts, a short setup asks **which apps you record clips with**. Apps it finds on your PC are already ticked.
 
-Click **Add your clips**, or the gear icon at the top right.
+![Setup: pick the apps you record with. SteelSeries GG and AMD are found on this PC](docs/images/setup-apps.webp)
 
-- **SteelSeries GG** shows up on its own if you have it.
-- **Other recorders:** click **Add a folder…** and choose the folder your clips are saved in. Cliptrove also lists the recorder folders it found on your PC. Click **Add** next to one to use it.
+Next, it asks **where each app saves its clips**. Folders it found are filled in for you. Otherwise, click **Choose…** and pick the folder. SteelSeries GG needs no folder: Cliptrove reads its library directly.
+
+![Setup: the AMD clips folder is filled in, with a Choose button](docs/images/setup-folders.webp)
+
+The last step offers **Start with Windows** and checks for ffmpeg. Setup only appears once. To add or remove folders later, use **Settings** (the gear icon at the top right).
 
 ![Settings: SteelSeries GG, a clips folder, and a folder Cliptrove found on this PC](docs/images/settings.webp)
 

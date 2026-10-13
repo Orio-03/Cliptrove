@@ -4,7 +4,8 @@
   "sources": {"gg": {"enabled": true},
               "folders": [{"path": "C:\\\\Users\\\\you\\\\Videos\\\\Radeon ReLive", "recorder": "amd", "enabled": true}]},
   "exportDir": "",   (empty: "Edited Clips" inside your first clips folder)
-  "port": 48650
+  "port": 48650,
+  "setupDone": true  (false until the first-start setup is finished or skipped)
 }
 """
 import configparser
@@ -18,7 +19,8 @@ from .sources.folder import RECORDERS, count_videos
 from .util import load_json, path_key, save_json
 
 DEFAULT_PORT = 48650
-DEFAULTS = {"version": 1, "sources": {"gg": {"enabled": True}, "folders": []}, "exportDir": "", "port": DEFAULT_PORT}
+DEFAULTS = {"version": 1, "sources": {"gg": {"enabled": True}, "folders": []}, "exportDir": "", "port": DEFAULT_PORT,
+            "setupDone": True}
 
 
 def clean_folders(folders):
@@ -46,12 +48,15 @@ def normalize(cfg):
     out["exportDir"] = os.path.normpath(cfg["exportDir"].strip()) if str(cfg.get("exportDir") or "").strip() else ""
     port = cfg.get("port")
     out["port"] = port if isinstance(port, int) and 1024 <= port <= 65535 else DEFAULT_PORT
+    out["setupDone"] = cfg.get("setupDone", True) is not False  # settings saved before setup existed count as done
     return out
 
 
 def load():
     saved = load_json(paths.SETTINGS, None)
-    return normalize(saved if isinstance(saved, dict) else {})
+    if not isinstance(saved, dict):
+        return normalize({"setupDone": False})  # the first start: show the setup
+    return normalize(saved)
 
 
 def save(cfg):
@@ -114,8 +119,9 @@ def obs_folders():
     return out
 
 
-def detect(skip=()):
-    """Recorders' clip folders found on this PC that have videos in them, and aren't in `skip` yet."""
+def detect(skip=(), include_empty=False):
+    """Recorders' clip folders found on this PC that have videos in them (or, with include_empty, that exist),
+    and aren't in `skip` yet."""
     vids = videos_dir()
     candidates = [
         ("amd", _reg(r"Software\AMD\DVR", "CaptureFileOutput")),
@@ -131,6 +137,6 @@ def detect(skip=()):
             continue
         seen.add(path_key(path))
         n = count_videos(path, cap=500)
-        if n:
+        if n or include_empty:
             out.append({"path": os.path.normpath(path), "recorder": rec, "label": RECORDERS[rec], "videos": n})
     return out
