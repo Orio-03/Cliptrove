@@ -1,5 +1,7 @@
 """Everything done with ffmpeg, on tiny real videos made for the test (skipped when ffmpeg isn't installed)."""
+import array
 import os
+import subprocess
 import time
 import unittest
 
@@ -7,6 +9,14 @@ import support
 from support import Running, TempDir, folder_settings, needs_ffmpeg, real_clip
 from cliptrove import media
 from cliptrove.media import Media, share_settings
+from cliptrove.util import NO_WINDOW
+
+
+def peak(path):
+    """The loudest moment in a video's audio, where 1.0 is the most a file can hold (above it, it crackles)."""
+    raw = subprocess.run([support.FFMPEG, "-v", "error", "-i", path, "-map", "0:a:0", "-f", "f32le", "-"],
+                         check=True, capture_output=True, creationflags=NO_WINDOW).stdout
+    return max(abs(s) for s in array.array("f", raw))
 
 
 class ShareSettings(unittest.TestCase):
@@ -91,6 +101,23 @@ class WithFFmpeg(unittest.TestCase):
         info = self.m.probe(os.path.join(out_dir, job["file"]))
         self.assertAlmostEqual(info["duration"], 1.0, delta=0.4)
         self.assertEqual(info["audio"], 1)  # every track mixed into one
+
+    def test_loud_tracks_that_add_up_are_kept_under_the_maximum(self):
+        # Game and Mic both peaking at 0.9 at the same moment add up to 1.8
+        src = real_clip(self.tmp.sub("clips", "loud.mp4"), peak=0.9)
+        out_dir = self.tmp.sub("edits-loud")
+        for loud in (False, True):
+            with self.subTest(even_out_loudness=loud):
+                job = self.wait(self.m.start_export(src, out_dir, "loud", None, 0, 2, [1, 1], False, loud, False))
+                self.assertEqual(job["state"], "done", job)
+                self.assertLess(peak(os.path.join(out_dir, job["file"])), 0.95)
+
+    def test_quiet_mixes_are_not_made_louder(self):
+        src = real_clip(self.tmp.sub("clips", "quiet.mp4"), peak=0.2)
+        out_dir = self.tmp.sub("edits-quiet")
+        job = self.wait(self.m.start_export(src, out_dir, "quiet", None, 0, 2, [1, 1], False, False, False))
+        self.assertEqual(job["state"], "done", job)
+        self.assertAlmostEqual(peak(os.path.join(out_dir, job["file"])), 0.4, delta=0.05)
 
     def test_saving_a_small_copy(self):
         jid = self.m.start_export(self.mp4, self.tmp.sub("edits"), "small", None, 0, 2, [1, 1], False, False, True)

@@ -294,6 +294,10 @@ class Media:
                 if loud and mixed:  # bring the whole mix to normal online-video loudness
                     chains.append(f"{mixed}loudnorm=I=-16:TP=-1.5:LRA=11,aresample=48000[aloud]")
                     mixed = "[aloud]"
+                elif mixed:  # loud moments on several tracks (or a raised volume) can add up past the maximum and
+                    # crackle: hold just those peaks under it (about -1 dB), and leave the rest as it is
+                    chains.append(f"{mixed}alimiter=limit=0.89:level=0[alim]")
+                    mixed = "[alim]"
                 video = "0:v:0"
                 if small:  # smaller picture for longer clips, so the size limit doesn't make it blocky
                     chains.append(f"[0:v:0]scale=-2:'min(ih,{height})'" + (",fps=30" if kbps < 2500 else "") + "[v]")
@@ -329,17 +333,17 @@ class Media:
                 pass
 
     def _run_ffmpeg(self, args, job, length):
-        p = subprocess.Popen(args, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True,
-                             errors="replace", creationflags=NO_WINDOW)
-        err = []
-        reader = threading.Thread(target=lambda: err.append(p.stderr.read()))
-        reader.start()
-        for line in p.stdout:
-            m = re.match(r"out_time_(?:us|ms)=(\d+)", line)
-            if m:
-                job["progress"] = min(0.99, int(m.group(1)) / 1e6 / length)
-        p.wait()
-        reader.join()
+        with subprocess.Popen(args, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True,
+                              errors="replace", creationflags=NO_WINDOW) as p:
+            err = []
+            reader = threading.Thread(target=lambda: err.append(p.stderr.read()))
+            reader.start()
+            for line in p.stdout:
+                m = re.match(r"out_time_(?:us|ms)=(\d+)", line)
+                if m:
+                    job["progress"] = min(0.99, int(m.group(1)) / 1e6 / length)
+            p.wait()
+            reader.join()
         if p.returncode:
             lines = "".join(err).strip().splitlines()
             raise RuntimeError(lines[-1] if lines else f"ffmpeg stopped with code {p.returncode}")
