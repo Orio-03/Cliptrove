@@ -333,17 +333,17 @@ class Media:
                 pass
 
     def _run_ffmpeg(self, args, job, length):
-        p = subprocess.Popen(args, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True,
-                             errors="replace", creationflags=NO_WINDOW)
-        err = []
-        reader = threading.Thread(target=lambda: err.append(p.stderr.read()))
-        reader.start()
-        for line in p.stdout:
-            m = re.match(r"out_time_(?:us|ms)=(\d+)", line)
-            if m:
-                job["progress"] = min(0.99, int(m.group(1)) / 1e6 / length)
-        p.wait()
-        reader.join()
+        with subprocess.Popen(args, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True,
+                              errors="replace", creationflags=NO_WINDOW) as p:
+            err = []
+            reader = threading.Thread(target=lambda: err.append(p.stderr.read()))
+            reader.start()
+            for line in p.stdout:
+                m = re.match(r"out_time_(?:us|ms)=(\d+)", line)
+                if m:
+                    job["progress"] = min(0.99, int(m.group(1)) / 1e6 / length)
+            p.wait()
+            reader.join()
         if p.returncode:
             lines = "".join(err).strip().splitlines()
             raise RuntimeError(lines[-1] if lines else f"ffmpeg stopped with code {p.returncode}")
