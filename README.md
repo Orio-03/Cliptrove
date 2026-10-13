@@ -59,6 +59,8 @@
 
 Open the [**latest release**](https://github.com/Th30utcast/Cliptrove/releases/latest). Under **Assets**, click **`Cliptrove-…-windows.zip`** to download it.
 
+![The release page's Assets list, with the Windows zip highlighted](docs/images/download.webp)
+
 ### 2. Unzip it and start Cliptrove
 
 1. Right-click the zip and choose **Extract All…**. Pick a folder you'll keep, for example `Documents\Cliptrove`.
