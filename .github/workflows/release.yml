@@ -57,15 +57,10 @@ jobs:
         run: python packaging/build_windows.py
       - name: Start it and check the site works
         run: python packaging/smoke_test.py dist/Cliptrove/Cliptrove.exe
-      - name: Checksum
-        shell: pwsh
-        run: Get-ChildItem dist/*.zip | ForEach-Object { "$((Get-FileHash $_ -Algorithm SHA256).Hash.ToLower())  $($_.Name)" } | Set-Content dist/SHA256SUMS.txt
       - uses: actions/upload-artifact@v7
         with:
           name: Cliptrove-windows
-          path: |
-            dist/*.zip
-            dist/SHA256SUMS.txt
+          path: dist/*.zip
 
   publish:
     name: Publish the release
@@ -79,6 +74,8 @@ jobs:
         with:
           name: Cliptrove-windows
           path: dist
+      - name: Checksum
+        run: cd dist && sha256sum *.zip > SHA256SUMS.txt && cat SHA256SUMS.txt
       - name: Create the release (and its v-tag)
         env:
           GH_TOKEN: ${{ github.token }}
