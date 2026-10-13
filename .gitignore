@@ -1,0 +1,18 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# Personal data: never commit these (clip names, nicknames, caches)
+*-history.json
+_GG-Titles.html
+covers/
+data/
+*.log
+
+# Editors / OS
+.vscode/
+.idea/
+Thumbs.db
+desktop.ini
