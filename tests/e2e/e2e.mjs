@@ -30,8 +30,13 @@ async function until(what, expr, ms = 15000) {
   }
   throw new Error(`timed out waiting for ${what}`);
 }
-const text = sel => js(`(document.querySelector(${JSON.stringify(sel)}) || {}).innerText || ''`);
-const click = sel => js(`(() => { const e = document.querySelector(${JSON.stringify(sel)}); if (!e) throw new Error('missing ${sel.replace(/'/g, '')}'); e.click(); return true; })()`);
+const text = sel => b.call(s => (document.querySelector(s) || {}).innerText || '', sel);
+const click = sel => b.call(s => {
+  const e = document.querySelector(s);
+  if (!e) throw new Error('missing ' + s);
+  e.click();
+  return true;
+}, sel);
 const lastToast = () => text('#toast');
 
 await b.go(base, 3000);
@@ -48,8 +53,12 @@ await check('setup with a clips folder', async () => {
   await click('.app[data-app="other"]');
   await click('#setupNext');
   await until('the folder step', `!!document.querySelector('.where[data-app="other"] input')`);
-  await js(`(() => { const i = document.querySelector('.where[data-app="other"] input'); i.value = ${JSON.stringify(clipsDir)};
-    i.dispatchEvent(new Event('input', {bubbles: true})); return true; })()`);
+  await b.call(folder => {
+    const i = document.querySelector('.where[data-app="other"] input');
+    i.value = folder;
+    i.dispatchEvent(new Event('input', { bubbles: true }));
+    return true;
+  }, clipsDir);
   await click('#setupNext');
   await until('the last step', `document.getElementById('setupNext').textContent === 'Finish'`);
   await click('#setupNext');

@@ -63,8 +63,16 @@ export async function launch({ port = 9444, width = 1366, height = 860 } = {}) {
     if (r.exceptionDetails) throw new Error(r.exceptionDetails.exception?.description || r.exceptionDetails.text);
     return r.result.value;
   };
+  // Runs fn in the page with args passed as data (not pasted into code)
+  const call = async (fn, ...args) => {
+    const { result: page } = await send('Runtime.evaluate', { expression: 'globalThis' });
+    const r = await send('Runtime.callFunctionOn', { objectId: page.objectId, functionDeclaration: fn.toString(),
+      arguments: args.map(value => ({ value })), awaitPromise: true, returnByValue: true });
+    if (r.exceptionDetails) throw new Error(r.exceptionDetails.exception?.description || r.exceptionDetails.text);
+    return r.result.value;
+  };
   return {
-    send, evaluate, problems,
+    send, evaluate, call, problems,
     go: async (url, wait = 2500) => { await send('Page.navigate', { url }); await sleep(wait); },
     shot: async () => Buffer.from((await send('Page.captureScreenshot', { format: 'png' })).data, 'base64'),
     close: () => { try { ws.close(); } catch {} proc.kill(); },
