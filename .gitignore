@@ -5,10 +5,15 @@ __pycache__/
 venv/
 
 # Personal data: never commit these (clip names, nicknames, caches)
+data/
 *-history.json
 _GG-Titles.html
+settings.json
+library.json
+index.json
+covers.json
 covers/
-data/
+cache/
 *.log
 
 # Editors / OS
