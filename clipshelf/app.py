@@ -36,8 +36,9 @@ def main(argv=None):
     from .server import running, serve
     port = args.port or settings.load()["port"]
     if running(port):
-        print(f"{APP_NAME} is already running" + ("." if args.background else ", opening it."))
-        if not args.background and not args.no_open:
+        opening = not (args.background or args.no_open)
+        print(f"{APP_NAME} is already running" + (", opening it." if opening else "."))
+        if opening:
             webbrowser.open(f"http://127.0.0.1:{port}/")
         return
     serve(port, background=args.background, open_browser=not (args.no_open or args.background))

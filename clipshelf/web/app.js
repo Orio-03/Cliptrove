@@ -947,7 +947,7 @@ function fillInfo() {
     $('gameInput').value = c.game === UNSORTED && !c.gameSet ? '' : c.game;
     $('gameList').innerHTML = [...GAMES].filter(g => g !== UNSORTED).sort((a, b) => a.localeCompare(b)).map(g => `<option value="${esc(g)}">`).join('');
   }
-  $('trimGG').textContent = c.trimSrc === 'gg' ? 'GG’s trim' : 'Saved trim';
+  $('trimGG').textContent = c.trimSrc === 'gg' || (c.src === 'gg' && !c.trimmed) ? 'GG’s trim' : 'Saved trim';
   $('trimGG').disabled = !c.trimmed;
   $('trimSave').hidden = !!c.edited;
   $('trimHint').textContent = c.edited || !c.trimmed ? '' : c.trimSrc === 'gg' ? 'GG’s trim plays in previews' : 'your trim plays in previews';
