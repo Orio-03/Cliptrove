@@ -25,6 +25,9 @@ It works with clips from:
 - **Stars, trims and games** for any clip, kept by ClipShelf
 - **Save edited copies**: trimmed, with your audio mix, in original quality or compressed under 18 MB for
   Discord. They appear in an **Edited** tab, where further edits overwrite the copy unless you say otherwise
+- **Analytics**: what you played week by week, your top games, when you play, a clip calendar, and which games
+  you're likely to play next week (a small model trained on your own history, with how well it did on your
+  past weeks shown next to it)
 - **New clips show up by themselves** while the page is open
 - **.mkv clips play** (repackaged for the browser on the fly, without re-encoding)
 
@@ -74,7 +77,8 @@ one in Settings.
 
 The site only listens on 127.0.0.1, so other devices can't reach it. Every request needs a token that only the
 page has, so other websites open in your browser can't use it either. ClipShelf only goes online to fetch cover
-art from Steam, and the only things it sends are game names and Steam app IDs.
+art from Steam (it sends only game names and Steam app IDs), and the page loads its fonts (Geist and Space
+Grotesk) from Google Fonts. Analytics and predictions are worked out on your PC.
 
 ## Notes
 
@@ -93,6 +97,7 @@ The code is in `clipshelf/`:
 - `sources/` reads each recorder (`gg.py`, `folder.py`).
 - `names.py` works out the game and date from file names.
 - `library.py` merges everything.
+- `analytics.py` is the "Up next" prediction model.
 - `media.py` wraps ffmpeg.
 - `server.py` is the local web server.
 - `web/` holds the page itself.

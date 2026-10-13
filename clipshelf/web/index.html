@@ -7,7 +7,7 @@
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@300..800&family=Geist+Mono:wght@400..600&family=Space+Grotesk:wght@400..700&display=swap">
 <script>try{document.documentElement.dataset.theme=localStorage.getItem('clipshelf.theme')||localStorage.getItem('ggclips.theme')||'dark'}catch(e){document.documentElement.dataset.theme='dark'}</script>
 <link rel="stylesheet" href="/app.css?v=__V__">
 </head>
@@ -15,7 +15,7 @@
 <header class="top">
   <a class="brand" href="#/"><span class="logo" data-ic="play"></span><span>ClipShelf</span></a>
   <label class="search"><span data-ic="search"></span><input id="q" type="search" placeholder="Search titles, nicknames, games, files, dates   ( / )" autocomplete="off" spellcheck="false"></label>
-  <nav class="tabs" id="tabs"><a href="#/" data-tab="home">Home</a><a href="#/edited" data-tab="edited">Edited <span class="pill" id="edPill"></span></a><a href="#/log" data-tab="log">Change log <span class="pill" id="logCount"></span></a></nav>
+  <nav class="tabs" id="tabs"><a href="#/" data-tab="home">Home</a><a href="#/edited" data-tab="edited">Edited <span class="pill" id="edPill"></span></a><a href="#/analytics" data-tab="analytics">Analytics</a><a href="#/log" data-tab="log">Change log <span class="pill" id="logCount"></span></a></nav>
   <div class="spacer"></div>
   <button class="icon-btn" id="bRefresh" data-ic="refresh" title="Look for new clips"></button>
   <a class="icon-btn" id="bSettings" href="#/settings" data-ic="gear" title="Settings: clip folders, saving, start with Windows"></a>
@@ -82,6 +82,46 @@
     </div>
     <div class="grid" id="edGrid"></div>
     <p class="empty" id="edEmpty" hidden></p>
+  </section>
+  <section id="statsView" hidden>
+    <div class="sechead stathead">
+      <h2>Analytics</h2><span class="count" id="stSpan"></span>
+      <div class="spacer"></div>
+      <div class="seg" id="stRange" role="group" aria-label="Time range">
+        <button type="button" data-r="30">30 days</button><button type="button" data-r="90">3 months</button><button type="button" data-r="365">12 months</button><button type="button" data-r="all">All time</button>
+      </div>
+    </div>
+    <div class="kpis" id="stKpis"></div>
+    <section class="panel">
+      <div class="panel-head">
+        <div><h3>What you played</h3><p class="panel-sub" id="stChartSub"></p></div>
+        <div class="spacer"></div>
+        <div class="seg sm" id="stMetric" role="group" aria-label="Measure">
+          <button type="button" data-m="days" title="Days with at least one clip of the game">Days played</button><button type="button" data-m="clips">Clips</button>
+        </div>
+      </div>
+      <div class="chart" id="stChart"></div>
+      <div class="legend" id="stLegend"></div>
+    </section>
+    <section class="panel" id="stNext">
+      <div class="panel-head"><div><h3>Up next</h3><p class="panel-sub">Your chance of playing each game in the next 7 days, learned from your own history</p></div></div>
+      <div id="stNextBody"></div>
+    </section>
+    <div class="panel-cols">
+      <section class="panel">
+        <div class="panel-head"><div><h3>Top games</h3><p class="panel-sub" id="stTopSub"></p></div></div>
+        <div id="stTop"></div>
+      </section>
+      <section class="panel">
+        <div class="panel-head"><div><h3>When you play</h3><p class="panel-sub" id="stWhenSub"></p></div></div>
+        <div id="stWhen"></div>
+      </section>
+    </div>
+    <section class="panel">
+      <div class="panel-head"><div><h3>Clip calendar</h3><p class="panel-sub" id="stCalSub">The last 12 months</p></div></div>
+      <div class="calwrap" id="stCal"></div>
+    </section>
+    <p class="foot">Analytics count a day as played when you saved at least one clip of the game that day. Desktop recordings and unsorted clips aren’t included.</p>
   </section>
   <section id="logView" hidden><div class="sechead"><h2>Change log</h2></div><div id="logBody"></div></section>
   <section id="settingsView" hidden>
