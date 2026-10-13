@@ -1,0 +1,45 @@
+name: Website
+
+# Publishes site/ (plus the README's screenshots and the logo) to https://th30utcast.github.io/Cliptrove/
+on:
+  push:
+    branches: [main]
+    paths: ["site/**", "docs/images/**", "assets/**", ".github/workflows/pages.yml"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: Put the site together
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - run: |
+          mkdir -p _site/images
+          cp -r site/. _site/
+          cp docs/images/*.webp _site/images/
+          cp assets/logo.svg assets/logo-256.png assets/social-preview.png _site/
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+  deploy:
+    name: Publish it
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
