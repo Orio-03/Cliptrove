@@ -120,7 +120,7 @@ It can't predict a game you've never played.
 You need [Python](https://www.python.org/downloads/) 3.10 or newer:
 
 ```
-git clone https://github.com/Th30utcast/Cliptrove.git
+git clone https://github.com/Orio-03/Cliptrove.git
 cd Cliptrove
 python -m cliptrove
 ```

@@ -15,7 +15,7 @@ def main(tag):
         raise SystemExit(f"CHANGELOG.md has no section for {version}")
     print(m.group(1).strip())
     print("\n---\n\n**Download** `Cliptrove-" + version + "-windows.zip` below, unzip it and run `Cliptrove.exe`. "
-          "[Setup guide](https://github.com/Th30utcast/Cliptrove#get-started)")
+          "[Setup guide](https://github.com/Orio-03/Cliptrove#get-started)")
 
 
 if __name__ == "__main__":

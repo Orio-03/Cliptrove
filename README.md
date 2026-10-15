@@ -11,9 +11,9 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/Th30utcast/Cliptrove/releases/latest"><b>Download for Windows</b></a>
+  <a href="https://github.com/Orio-03/Cliptrove/releases/latest"><b>Download for Windows</b></a>
   ·
-  <a href="https://th30utcast.github.io/Cliptrove/">Website</a>
+  <a href="https://orio-03.github.io/Cliptrove/">Website</a>
   ·
   <a href="#get-started">Get started</a>
   ·
@@ -23,8 +23,8 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/Th30utcast/Cliptrove/releases/latest"><img alt="Latest release" src="https://img.shields.io/github/v/release/Th30utcast/Cliptrove?label=download&color=07f2cc"></a>
-  <a href="https://github.com/Th30utcast/Cliptrove/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/Th30utcast/Cliptrove/actions/workflows/ci.yml/badge.svg"></a>
+  <a href="https://github.com/Orio-03/Cliptrove/releases/latest"><img alt="Latest release" src="https://img.shields.io/github/v/release/Orio-03/Cliptrove?label=download&color=07f2cc"></a>
+  <a href="https://github.com/Orio-03/Cliptrove/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/Orio-03/Cliptrove/actions/workflows/ci.yml/badge.svg"></a>
   <img alt="Windows 10 and 11" src="https://img.shields.io/badge/Windows-10%20%7C%2011-555">
   <a href="LICENSE.md"><img alt="License: PolyForm Noncommercial" src="https://img.shields.io/badge/license-PolyForm%20Noncommercial-555"></a>
 </p>
@@ -60,7 +60,7 @@
 
 ### 1. Download
 
-Open the [**latest release**](https://github.com/Th30utcast/Cliptrove/releases/latest). Under **Assets**, click **`Cliptrove-…-windows.zip`** to download it.
+Open the [**latest release**](https://github.com/Orio-03/Cliptrove/releases/latest). Under **Assets**, click **`Cliptrove-…-windows.zip`** to download it.
 
 ![The release page's Assets list, with the Windows zip highlighted](docs/images/download.webp)
 
@@ -70,7 +70,7 @@ Open the [**latest release**](https://github.com/Th30utcast/Cliptrove/releases/l
 2. Open that folder and double-click **`Cliptrove.exe`**.
 
 > [!NOTE]
-> **Seeing "Windows protected your PC"?** Windows shows this for new apps that haven't paid for a code-signing certificate. Click **More info**, then **Run anyway**. You only need to do this once. Only download Cliptrove from this page's [Releases](https://github.com/Th30utcast/Cliptrove/releases).
+> **Seeing "Windows protected your PC"?** Windows shows this for new apps that haven't paid for a code-signing certificate. Click **More info**, then **Run anyway**. You only need to do this once. Only download Cliptrove from this page's [Releases](https://github.com/Orio-03/Cliptrove/releases).
 
 Your browser opens Cliptrove at **http://127.0.0.1:48650**. This address only works on your own PC.
 
@@ -187,7 +187,7 @@ The **Analytics** tab shows:
 ## Updating
 
 1. In Cliptrove, go to Settings > About > **Quit Cliptrove**.
-2. Download the new zip from [Releases](https://github.com/Th30utcast/Cliptrove/releases) and unzip it **over** your old Cliptrove folder.
+2. Download the new zip from [Releases](https://github.com/Orio-03/Cliptrove/releases) and unzip it **over** your old Cliptrove folder.
 3. Start `Cliptrove.exe`.
 
 Your settings, nicknames and other data are kept separately, so nothing is lost. If you put the new version in a **different** folder and use "Start with Windows", turn that switch off and on once.
@@ -198,12 +198,12 @@ Turn off **Start with Windows**, quit Cliptrove, and delete its folder. To also 
 
 ## Questions
 
-Have a question or an idea? Ask in [**Discussions**](https://github.com/Th30utcast/Cliptrove/discussions). Found a bug? [Report it](https://github.com/Th30utcast/Cliptrove/issues/new/choose).
+Have a question or an idea? Ask in [**Discussions**](https://github.com/Orio-03/Cliptrove/discussions). Found a bug? [Report it](https://github.com/Orio-03/Cliptrove/issues/new/choose).
 
 <details>
 <summary><b>Some clips are under the wrong game, or under "Unsorted"</b></summary>
 
-Recorders like OBS don't put the game in the file name. Open the clip and type the right game under **Game**. If it's a recorder Cliptrove should understand better, please [open an issue](https://github.com/Th30utcast/Cliptrove/issues) with a few example file names, with anything personal removed.
+Recorders like OBS don't put the game in the file name. Open the clip and type the right game under **Game**. If it's a recorder Cliptrove should understand better, please [open an issue](https://github.com/Orio-03/Cliptrove/issues) with a few example file names, with anything personal removed.
 
 </details>
 
@@ -247,7 +247,7 @@ Yes, for personal and other noncommercial use. See [License](#license).
 Cliptrove is plain Python (standard library only) plus HTML, CSS and JavaScript. To run it from the source code, with [Python](https://www.python.org/downloads/) 3.10 or newer:
 
 ```
-git clone https://github.com/Th30utcast/Cliptrove.git
+git clone https://github.com/Orio-03/Cliptrove.git
 cd Cliptrove
 python -m cliptrove
 ```
@@ -259,6 +259,6 @@ python -m cliptrove
 Cliptrove is © 2026 Ayman Kandouli and is available under the [PolyForm Noncommercial License 1.0.0](LICENSE.md).
 
 - **Free** to use, share and change for personal and other noncommercial purposes, as long as you keep the license notice.
-- **Not allowed** without permission: selling it, or using it in a commercial product or service. To ask about commercial use, [open an issue](https://github.com/Th30utcast/Cliptrove/issues).
+- **Not allowed** without permission: selling it, or using it in a commercial product or service. To ask about commercial use, [open an issue](https://github.com/Orio-03/Cliptrove/issues).
 
 Cliptrove isn't affiliated with SteelSeries, NVIDIA, AMD, Microsoft, OBS, Medal or Valve. [Third-party notices](THIRD-PARTY-NOTICES.md) has the details.

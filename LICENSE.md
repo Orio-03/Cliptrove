@@ -1,4 +1,4 @@
-Required Notice: Copyright (c) 2026 Ayman Kandouli (https://github.com/Th30utcast)
+Required Notice: Copyright (c) 2026 Ayman Kandouli (https://github.com/Orio-03)
 
 # PolyForm Noncommercial License 1.0.0
 
