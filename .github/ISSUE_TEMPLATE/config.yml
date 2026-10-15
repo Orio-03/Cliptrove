@@ -1,8 +1,8 @@
 blank_issues_enabled: true
 contact_links:
   - name: Ask a question or suggest an idea
-    url: https://github.com/Th30utcast/Cliptrove/discussions
+    url: https://github.com/Orio-03/Cliptrove/discussions
     about: Questions, ideas and help with setup go in Discussions.
   - name: Report a security problem privately
-    url: https://github.com/Th30utcast/Cliptrove/security/advisories/new
+    url: https://github.com/Orio-03/Cliptrove/security/advisories/new
     about: Please don't open a public issue for security problems.

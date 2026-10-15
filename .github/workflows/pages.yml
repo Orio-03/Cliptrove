@@ -1,6 +1,6 @@
 name: Website
 
-# Publishes site/ (plus the README's screenshots and the logo) to https://th30utcast.github.io/Cliptrove/
+# Publishes site/ (plus the README's screenshots and the logo) to https://orio-03.github.io/Cliptrove/
 on:
   push:
     branches: [main]

@@ -25,7 +25,7 @@ QUICK_START = """Cliptrove {version}
 Thumbnails, extra audio tracks and saving edited copies need ffmpeg:
 open PowerShell and run   winget install Gyan.FFmpeg   then restart Cliptrove.
 
-Keep all the files in this folder together. Full guide: https://github.com/Th30utcast/Cliptrove
+Keep all the files in this folder together. Full guide: https://github.com/Orio-03/Cliptrove
 """
 
 

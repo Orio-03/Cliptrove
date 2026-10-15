@@ -6,7 +6,7 @@ Cliptrove runs a small web server on your own PC. It only listens on `127.0.0.1`
 
 If you find a way for another website, program or device to read someone's clip library or control Cliptrove, **please don't open a public issue**. Report it privately instead:
 
-1. Go to [Security > Report a vulnerability](https://github.com/Th30utcast/Cliptrove/security/advisories/new).
+1. Go to [Security > Report a vulnerability](https://github.com/Orio-03/Cliptrove/security/advisories/new).
 2. Describe what you found and how to reproduce it.
 
 This is a one-person hobby project, so replies may take a few days. Please give it a reasonable time to be fixed before sharing details publicly.
@@ -23,4 +23,4 @@ Each release lists the SHA-256 checksum of its zip in `SHA256SUMS.txt`. To check
 Get-FileHash .\Cliptrove-0.3.0-windows.zip -Algorithm SHA256
 ```
 
-Only download Cliptrove from this repository's [Releases page](https://github.com/Th30utcast/Cliptrove/releases).
+Only download Cliptrove from this repository's [Releases page](https://github.com/Orio-03/Cliptrove/releases).
