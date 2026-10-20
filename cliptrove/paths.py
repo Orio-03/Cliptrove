@@ -37,7 +37,7 @@ def adopt_legacy():
 
 
 def configure(data_dir=None):
-    global DATA, SETTINGS, LIBRARY, INDEX, COVER_CACHE, COVERS_DIR, CACHE, THUMBS, AUDIO, VIDEO, LOG
+    global DATA, SETTINGS, LIBRARY, INDEX, COVER_CACHE, COVERS_DIR, CACHE, THUMBS, AUDIO, VIDEO, WAVES, LOG
     DATA = os.path.abspath(data_dir) if data_dir else default_data_dir()
     SETTINGS = os.path.join(DATA, "settings.json")
     LIBRARY = os.path.join(DATA, "library.json")  # nicknames, favorites, trims, audio levels, games, change log
@@ -48,6 +48,7 @@ def configure(data_dir=None):
     THUMBS = os.path.join(CACHE, "thumbs")
     AUDIO = os.path.join(CACHE, "audio")  # Chat/Mic tracks pulled out of clips
     VIDEO = os.path.join(CACHE, "video")  # .mkv and similar clips repackaged as .mp4 so the browser can play them
+    WAVES = os.path.join(CACHE, "waves")  # the outline of each audio track, drawn under the player
     LOG = os.path.join(DATA, "cliptrove.log")  # used when Cliptrove runs in the background (no window)
 
 

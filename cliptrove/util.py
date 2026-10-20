@@ -75,12 +75,22 @@ def retry_io(action, tries=12):
             time.sleep(0.25)
 
 
+def bundled_tools_dir():
+    """Where the Windows app keeps the ffmpeg it comes with (next to Cliptrove.exe), or None when running from
+    the source code."""
+    return os.path.join(os.path.dirname(sys.executable), "ffmpeg") if getattr(sys, "frozen", False) else None
+
+
 def find_tool(name):
-    """ffmpeg / ffprobe: on the PATH, or where winget and the usual installers put them."""
+    """ffmpeg / ffprobe: the copy that comes with the Windows app, else on the PATH, or where winget and the
+    usual installers put them."""
+    exe = name + (".exe" if sys.platform == "win32" else "")
+    bundled = bundled_tools_dir()
+    if bundled and os.path.isfile(os.path.join(bundled, exe)):
+        return os.path.join(bundled, exe)
     found = shutil.which(name)
     if found:
         return found
-    exe = name + (".exe" if sys.platform == "win32" else "")
     local = os.environ.get("LOCALAPPDATA", "")
     patterns = [
         os.path.join(local, "Microsoft", "WinGet", "Links", exe),

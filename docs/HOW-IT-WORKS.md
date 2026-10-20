@@ -59,11 +59,17 @@ Everything that touches video uses ffmpeg:
 - **Thumbnails** for clips from folders, from a quarter of the way in.
 - **Extra audio tracks** (Chat, Mic...) are copied out of the clip once. The page plays them alongside the video, in sync, each with its own volume.
 - **.mkv, .flv and .ts clips** are repackaged as .mp4, which browsers can play. This copies the video without re-encoding it.
+- **Waveforms:** each audio track is read once at 8,000 samples a second, and the loudest moment of every short slice (about 2,000 per track) is kept on a decibel scale, so quiet tracks still show. They're cached in `cache/waves`.
+- **Stills:** the frame at the playhead, saved as a PNG next to your edited copies.
 - **Saving edited copies:**
   - Every track is mixed at the volumes you picked.
   - Optionally, the loudness is evened out. Otherwise a limiter holds the loudest moments just under the maximum, so a loud game and a loud mic at the same moment don't add up to crackling.
   - The video is copied as it is, or re-encoded with your graphics card's encoder for exact cuts.
   - Compressed copies are re-encoded to land under 18 MB.
+  - Portrait (9:16) copies either crop a 9:16 window (where you put it), or put the whole picture on a blurred, darker copy of itself. They're 1080×1920, or smaller when compressed.
+  - Fades are half a second (shorter for very short copies), on the picture and the sound.
+- **Which ffmpeg:** the Windows app comes with FFmpeg's LGPL build in its `ffmpeg` folder and uses that first; otherwise Cliptrove looks on the PATH and where winget puts it. For re-encoding it uses your graphics card's encoder when there is one (AMD, NVIDIA, Intel), else libx264, Windows' own H.264 encoder or OpenH264, whichever this ffmpeg has.
+- **Copy to clipboard** (Windows): the saved file is put on the clipboard the way Explorer's Copy does it, so Ctrl+V pastes the file.
 
 ## The local server (`server.py`)
 
@@ -106,7 +112,8 @@ It can't predict a game you've never played.
 | `cliptrove/sources/gg.py` | Reading SteelSeries GG's library |
 | `cliptrove/sources/folder.py` | Reading clip folders |
 | `cliptrove/names.py` | Game and date from file names |
-| `cliptrove/media.py` | ffmpeg: probing, thumbnails, audio tracks, .mkv, saving copies |
+| `cliptrove/media.py` | ffmpeg: probing, thumbnails, audio tracks, waveforms, .mkv, saving copies and stills |
+| `cliptrove/clipboard.py` | Copying saved files to the Windows clipboard |
 | `cliptrove/covers.py` | Cover art from Steam, and your own cover pictures |
 | `cliptrove/analytics.py` | The "Up next" model |
 | `cliptrove/settings.py` | Settings, and finding recorders' folders on your PC |
@@ -142,6 +149,7 @@ You can also double-click `Cliptrove.bat`. Options:
   - who may use it: the token, and requests from other sites
   - bad requests: unknown clips, broken JSON, oversized requests, missing folders, invalid trims
   - the first-start setup, renames, new clips, damaged data files, and Quit
+- **`tests/test_editor.py`:** the editing tools: waveforms, portrait copies (crop and blurred), fades, stills, the encoder fallbacks, the bundled ffmpeg being found first, and the clipboard.
 - **`tests/test_media.py`:** ffmpeg, on tiny generated videos (only when ffmpeg is installed).
   - probing, thumbnails, .mkv, extra tracks, saving copies
   - broken and vanished files

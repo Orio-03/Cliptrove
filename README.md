@@ -37,8 +37,9 @@
 
 - **Every clip in one library.** Clips from different recorders are grouped by game, with cover art. Your newest clips play on the home page.
 - **Hover to preview, click to watch.** The player has frame-by-frame stepping, looping, speeds and keyboard shortcuts.
-- **Mix the audio.** If your recorder saves Game, Chat and Mic as separate tracks, set each one's volume. Cliptrove remembers it per clip.
-- **Trim and save copies.** Save in original quality, or compressed under 18 MB so it fits on Discord. Your originals are never changed.
+- **Mix the audio.** If your recorder saves Game, Chat and Mic as separate tracks, set each one's volume, and see each track's waveform under the video. Cliptrove remembers your levels per clip.
+- **Trim and save copies.** Save in original quality, or compressed under 18 MB so it fits on Discord. In the normal shape, or in portrait (9:16) for Reels, TikTok and Shorts, with fades if you like. Copy the saved file and paste it straight into Discord. Your originals are never changed.
+- **Save stills.** Save the frame on screen as a picture, for thumbnails or memes.
 - **Nicknames, stars and games.** Name your best clips, star them, and put clips under the right game.
 - **Analytics.** See what you played and when, and which games you're likely to play next week.
 - **Private by design.** No account, no uploads, no tracking. [Privacy](PRIVACY.md) has the details.
@@ -103,18 +104,11 @@ The easiest way to check: right-click a clip in your recorder and choose "Show i
 
 </details>
 
-### 4. Install ffmpeg (recommended)
+### 4. ffmpeg comes included
 
-Thumbnails for clips from folders, separate Chat/Mic tracks, playing .mkv files and saving edited copies all need **ffmpeg**, a free video tool.
+Thumbnails, separate Chat/Mic tracks, waveforms, playing .mkv files and saving edited copies use **ffmpeg**, a free video tool. The Windows app comes with it, in its `ffmpeg` folder, so there's nothing to install.
 
-1. Click Start, type **PowerShell** and open it.
-2. Paste this and press Enter:
-
-   ```
-   winget install Gyan.FFmpeg
-   ```
-
-3. Restart Cliptrove: Settings > About > **Quit Cliptrove**, then open `Cliptrove.exe` again.
+Running Cliptrove from the source code instead? Then install ffmpeg yourself: open **PowerShell** and run `winget install Gyan.FFmpeg`, then restart Cliptrove.
 
 ### 5. Start with Windows (optional)
 
@@ -135,8 +129,13 @@ The home page plays your newest clips, with a tile for every game below. Hover o
 Click any clip to open the player.
 
 - **Audio:** each recorded track has its own volume slider. Cliptrove remembers your levels for that clip.
+- **Waveforms:** under the video, each track (Game, Chat, Mic) has a lane showing its waveform, in its own color. A lane grows and shrinks with its slider, so you can see your mix. Click a lane to jump there. Press **W** to hide them.
 - **Trim:** drag the green handles, or press **I** and **O**. Click **Keep this trim** so previews only play that part.
-- **Save edited copy:** saves the part you picked, with your audio mix. Choose **Original quality** or **Compressed · 18 MB**.
+- **Save edited copy:** saves the part you picked, with your audio mix. Choose **Original quality** or **Compressed · 18 MB**, and:
+  - **Normal · 16:9**, or **Portrait · 9:16** for Reels, TikTok and Shorts. For portrait, **Crop** keeps a 9:16 part of the picture (drag the frame on the video to choose which), and **Blurred background** shows the whole picture on a blurred copy of itself.
+  - **Fade in and out**, for the picture and the sound.
+  - When it's saved, **Copy** puts the file on the clipboard: press Ctrl+V in Discord to send it.
+- **Save a still:** the camera button (or **C**) saves the frame on screen as a PNG, next to your edited copies.
 
 ![The player with Game and Mic volume sliders, trim controls and saving](docs/images/player.webp)
 
@@ -154,6 +153,8 @@ Click any clip to open the player.
 | S | Star |
 | R | Nickname |
 | M / F | Mute / full screen |
+| C | Save the frame on screen as a picture |
+| W | Show / hide the waveforms |
 | Esc | Close the player |
 
 </details>
@@ -210,7 +211,7 @@ Recorders like OBS don't put the game in the file name. Open the clip and type t
 <details>
 <summary><b>No thumbnails, or Chat and Mic are greyed out</b></summary>
 
-Install ffmpeg, see [step 4](#4-install-ffmpeg-recommended). Chat and Mic only appear if your recorder saved them as separate tracks.
+The Windows app comes with ffmpeg, which these need. If you run Cliptrove from the source code, install ffmpeg, see [step 4](#4-ffmpeg-comes-included). Chat and Mic only appear if your recorder saved them as separate tracks.
 
 </details>
 

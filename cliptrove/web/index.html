@@ -139,6 +139,7 @@
         <div class="bigplay" data-ic="play"></div>
         <div class="spinner" aria-hidden="true"></div>
         <div class="stage-msg" id="stageMsg" hidden></div>
+        <div class="cropbox" id="cropBox" hidden><div class="crop-win" id="cropWin" title="Drag to choose what the portrait copy keeps"><span>9:16</span></div></div>
       </div>
       <div class="controls">
         <div class="tl" id="tl">
@@ -150,6 +151,11 @@
           <div class="tl-head" id="tlHead"></div>
           <div class="tl-tip" id="tlTip">0:00</div>
         </div>
+        <div class="lanes" id="lanes" hidden>
+          <div id="lanesBody"></div>
+          <div class="ln-dim" id="lnBefore"></div><div class="ln-dim ln-after" id="lnAfter"></div>
+          <div class="ln-head" id="lnHead"></div>
+        </div>
         <div class="crow">
           <button class="cbtn" id="bPrev" data-ic="prev" title="Previous clip (P)"></button>
           <button class="cbtn" id="bBack" data-ic="back" title="Back 5 seconds (←)"></button>
@@ -158,6 +164,8 @@
           <button class="cbtn" id="bNext" data-ic="next" title="Next clip (N)"></button>
           <div class="ctime"><span id="tCur">0:00</span> <span class="dim">/ <span id="tDur">0:00</span></span></div>
           <div class="spacer"></div>
+          <button class="cbtn" id="bStill" data-ic="camera" title="Save this frame as a picture (C)"></button>
+          <button class="cbtn" id="bWaves" data-ic="wave" title="Show the audio waveforms (W)"></button>
           <button class="cbtn" id="bLoop" data-ic="loop" title="Loop the selection"></button>
           <select class="cspeed" id="speed" title="Playback speed">
             <option value="0.25">0.25×</option><option value="0.5">0.5×</option><option value="0.75">0.75×</option>
@@ -191,7 +199,7 @@
             <div class="row nowrap"><input class="input" id="gameInput" list="gameList" maxlength="80" autocomplete="off" placeholder="Which game is this?"><button class="btn sm" type="submit">Move</button></div>
             <datalist id="gameList"></datalist>
           </form>
-          <div class="pfile"><span class="mono" id="pFile"></span><button class="btn sm" id="bReveal" type="button" data-ic="folder">Show in folder</button></div>
+          <div class="pfile"><span class="mono" id="pFile"></span><button class="btn sm" id="bReveal" type="button" data-ic="folder">Show in folder</button><button class="btn sm" id="bCopy" type="button" data-ic="copy" hidden title="Copy the file, then paste it into Discord with Ctrl+V">Copy</button></div>
         </section>
         <section class="sec">
           <h3>Audio <span class="hint" id="mixHint"></span><button class="btn sm" id="mixReset" type="button" hidden>Reset levels</button></h3>
@@ -217,8 +225,20 @@
               <button type="button" data-q="small">Compressed · 18 MB</button>
             </div>
             <p class="exnote" id="exQNote"></p>
+            <div class="seg exq" id="exShape" role="group" aria-label="Shape">
+              <button type="button" data-s="landscape">Normal · 16:9</button>
+              <button type="button" data-s="portrait">Portrait · 9:16</button>
+            </div>
+            <div id="exFitRow" hidden>
+              <div class="seg exq" id="exFit" role="group" aria-label="How to fit a wide clip">
+                <button type="button" data-f="crop">Crop</button>
+                <button type="button" data-f="blur">Blurred background</button>
+              </div>
+              <p class="exnote" id="exFitNote"></p>
+            </div>
             <label class="check" id="exPreciseRow"><input type="checkbox" id="exPrecise"> Exact cut <span class="dim">(re-encodes the video, a bit slower)</span></label>
             <label class="check"><input type="checkbox" id="exLoud"> Even out loudness <span class="dim">(normal YouTube level)</span></label>
+            <label class="check"><input type="checkbox" id="exFade"> Fade in and out <span class="dim">(picture and sound)</span></label>
             <button class="btn primary wide" id="exGo" data-ic="save">Save copy</button>
             <div class="exprog" id="exProg" hidden><div class="bar"><i id="exBar"></i></div><span id="exText"></span><div class="row" id="exActions"></div></div>
           </div>
@@ -237,6 +257,8 @@
             <dt><kbd>S</kbd></dt><dd>Star / unstar</dd>
             <dt><kbd>R</kbd></dt><dd>Nickname</dd>
             <dt><kbd>M</kbd> <kbd>F</kbd></dt><dd>Mute / full screen</dd>
+            <dt><kbd>C</kbd></dt><dd>Save this frame as a picture</dd>
+            <dt><kbd>W</kbd></dt><dd>Show / hide the waveforms</dd>
             <dt><kbd>Esc</kbd></dt><dd>Close the player</dd>
           </dl>
         </details>

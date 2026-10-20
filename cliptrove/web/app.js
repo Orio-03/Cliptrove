@@ -39,6 +39,9 @@ const P = {
   trash: '<path d="M4 7h16M9.5 7V4.5h5V7M6.5 7l1 13h9l1-13M10 11v5M14 11v5"/>',
   film: '<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M7 4v16M17 4v16M3 9h4M3 15h4M17 9h4M17 15h4"/>',
   power: '<path d="M12 3v8"/><path d="M6.3 6.8a8 8 0 1 0 11.4 0"/>',
+  camera: '<path d="M4 8h3.2L9 5.5h6L16.8 8H20a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1z"/><circle cx="12" cy="13.5" r="3.5"/>',
+  wave: '<path d="M3 12h1M6.5 9v6M10 5.5v13M13.5 8v8M17 10v4M20.5 12h.5"/>',
+  copy: '<rect x="8.5" y="8.5" width="11.5" height="11.5" rx="2"/><path d="M15.5 8.5v-3A1.5 1.5 0 0 0 14 4H5.5A1.5 1.5 0 0 0 4 5.5V14a1.5 1.5 0 0 0 1.5 1.5h3"/>',
 };
 const ic = n => `<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${P[n] || ''}</svg>`;
 document.querySelectorAll('[data-ic]').forEach(el => el.insertAdjacentHTML('afterbegin', ic(el.dataset.ic)));
@@ -87,10 +90,11 @@ const store = {  // settings kept in this browser (earlier versions saved them a
   set(k, v) { try { localStorage.setItem('cliptrove.' + k, v); } catch (e) {} },
 };
 let toastTimer;
-function toast(msg, err) {
+function toast(msg, err, actions = '') {
   const t = $('toast');
-  t.textContent = msg; t.className = 'toast' + (err ? ' err' : ''); t.hidden = false;
-  clearTimeout(toastTimer); toastTimer = setTimeout(() => { t.hidden = true; }, err ? 4500 : 2800);
+  t.innerHTML = esc(msg) + (actions ? `<span class="toast-acts">${actions}</span>` : '');
+  t.className = 'toast' + (err ? ' err' : '') + (actions ? ' acts' : ''); t.hidden = false;
+  clearTimeout(toastTimer); toastTimer = setTimeout(() => { t.hidden = true; }, err ? 4500 : actions ? 7000 : 2800);
 }
 async function post(path, body) {
   const r = await fetch(path, {method: 'POST', headers: {'Content-Type': 'application/json', 'X-Token': TOKEN}, body: JSON.stringify(body)});
@@ -104,6 +108,8 @@ async function getJSON(path) {
   if (!r.ok) throw new Error(j.error || `Request failed (${r.status})`);
   return j;
 }
+const TAGS = /(?: \((?:vertical|18MB)\))+$/;  // what Cliptrove adds to a saved copy's name
+const editTags = f => (/\(vertical\)/.test(f) ? '<span class="tag">9:16</span>' : '') + (/\(18MB\)/.test(f) ? '<span class="tag">18 MB</span>' : '');
 const trackUrl = (c, n) => `/audio/${c.id}/${n}?t=${encodeURIComponent(TOKEN)}`;
 const level = t => (t && !t.muted ? (t.volume ?? 1) : 0);  // a track's volume in the clip's mix
 
@@ -592,7 +598,7 @@ function cardEl(c, i) {
     + (c.trimmed ? `<span class="badge cut" title="${trimWord(c)}">${ic('scissors')}</span>` : '')
     + (c.len > 0 ? `<span class="badge len">${fmtLen(c.len)}</span>` : '') + '</div>'
     + `<div class="info"><div class="ginfo"><i class="gdot" style="--h:${hue(c.game)}"></i><span>${esc(c.game)}</span>`
-    + (c.nick ? '<span class="tag nick" title="You gave this clip a nickname">Nickname</span>' : c.edited && /\(18MB\)/.test(c.file) ? '<span class="tag">18 MB</span>' : '') + '</div>'
+    + (c.nick ? '<span class="tag nick" title="You gave this clip a nickname">Nickname</span>' : c.edited ? editTags(c.file) : '') + '</div>'
     + `<div class="ctitle${auto ? ' auto' : ''}" title="${esc(shownTitle(c))}">${esc(shownTitle(c))}</div>`
     + `<div class="csub">${c.edited ? `${fmtSize(c.size)} · saved ${fmtDate(c.made)}` : `${c.nick && c.src === 'gg' ? `GG: ${esc(c.title)} · ` : ''}${fmtDate(c.recorded)}`}</div></div>`;
   el.addEventListener('mouseenter', () => hoverStart(el));
@@ -1331,7 +1337,7 @@ $('setupSkip').onclick = async () => {
 // ---------- player ----------
 const vid = $('vid'), stage = $('stage'), tl = $('tl');
 const E = {};
-['tlSel', 'tlPlayed', 'hIn', 'hOut', 'tlHead', 'tlTip', 'tCur', 'tDur', 'tIn', 'tOut', 'tSel'].forEach(id => { E[id] = $(id); });
+['tlSel', 'tlPlayed', 'hIn', 'hOut', 'tlHead', 'tlTip', 'tCur', 'tDur', 'tIn', 'tOut', 'tSel', 'lnHead', 'lnBefore', 'lnAfter'].forEach(id => { E[id] = $(id); });
 const MIN_SEL = 0.2;
 let cur = null, navList = [], opener = null, sel = {a: 0, b: 0}, loop = false, lastT = 0, raf = 0, drag = null, masterMuted = false;
 let mix = [], actx = null, master = null, vidGain = null, extras = [], syncTimer = 0, exJob = null, exNameTouched = false;
@@ -1352,6 +1358,7 @@ function openPlayer(id, from) {
   lastT = sel.a;
   mix = buildMix(c);
   renderMixer();
+  loadWaves(c);
   $('stageMsg').hidden = true;
   stage.classList.add('paused');
   vid.poster = c.thumb || '';
@@ -1369,6 +1376,8 @@ function openPlayer(id, from) {
     vid.playbackRate = +$('speed').value;
     seek(sel.a);
     drawTL();
+    drawLanes();
+    placeCrop();
     vid.play().catch(() => {});
   }, {once: true});
   setupAudio(c);
@@ -1408,6 +1417,7 @@ function fillInfo() {
   $('pFile').textContent = c.file;
   $('pFile').title = c.folder ? `${c.folder}\\${c.file}` : c.file;
   $('bRename').hidden = !!c.edited;  // an edited clip's name is its file name
+  $('bCopy').hidden = !(c.edited && META.clipboard);
   $('bStar').hidden = !!c.edited;
   $('bStar').innerHTML = ic('staro');
   $('bStar').classList.toggle('on', !!c.starred);
@@ -1566,13 +1576,14 @@ $('mixer').addEventListener('input', e => {
   m.vol = +e.target.value;
   el.querySelector('.val').textContent = m.vol + '%';
   applyGains();
+  drawLanes();
   rememberMix(m);
 });
 $('mixer').addEventListener('click', e => {
   const b = e.target.closest('[data-act="mute"]'); if (!b) return;
   const m = mix[+b.closest('.track').dataset.i];
   m.muted = !m.muted;
-  updateTrack(m); applyGains();
+  updateTrack(m); applyGains(); drawLanes();
   rememberMix(m);
 });
 // Levels are remembered per clip (like GG does), and also used by hover previews and the home page.
@@ -1606,7 +1617,7 @@ $('mixReset').onclick = () => {
     const t = cur.tracks[m.stream];
     if (t) { m.vol = Math.round(clamp(t.volume * 100, 0, 200)); m.muted = t.muted; }
   }
-  renderMixer(); applyGains();
+  renderMixer(); applyGains(); drawLanes();
   const first = mix.find(m => m.stream >= 0);
   if (first) rememberMix(first);  // saves the whole clip's levels, which are now the recorded ones again
   toast(cur.src === 'gg' ? 'Back to GG’s levels' : 'Back to the recorded levels');
@@ -1623,6 +1634,9 @@ function drawTL() {
   E.hOut.style.left = pct(sel.b);
   E.tlHead.style.left = pct(t);
   E.tlPlayed.style.width = pct(t);
+  E.lnHead.style.left = pct(t);
+  E.lnBefore.style.width = pct(sel.a);
+  E.lnAfter.style.left = pct(sel.b);
   E.tCur.textContent = fmtLen(t);
   E.tDur.textContent = fmtLen(dur());
   E.tIn.textContent = fmtExact(sel.a);
@@ -1718,6 +1732,138 @@ const endDrag = () => { drag = null; };
 tl.addEventListener('pointerup', endDrag);
 tl.addEventListener('pointercancel', endDrag);
 
+// Waveforms: one lane per track under the timeline, like GG's editor. A lane's height follows its volume slider,
+// so you can see the mix. Cliptrove reads each track's outline from the clip once (with ffmpeg) and keeps it.
+const LANE_COLORS = {game: '#1fc8a8', chat: '#5b9cff', mic: '#ffb547', mix: '#07f2cc'};
+const LANE_MORE = ['#1fc8a8', '#5b9cff', '#ffb547', '#c084fc', '#f472b6'];
+const wavesCache = new Map();
+let waves = null;
+const lanesOn = () => AUDIO && store.get('waves', '1') === '1';
+const laneColor = (m, i) => LANE_COLORS[m.name.toLowerCase()] || LANE_MORE[i % LANE_MORE.length];
+function renderLanes() {
+  const show = lanesOn() && !!cur && mix.length > 0;
+  $('lanes').hidden = !show;
+  $('bWaves').hidden = !AUDIO;
+  $('bWaves').classList.toggle('on', lanesOn());
+  if (!show) return;
+  $('lanesBody').innerHTML = mix.map((m, i) => `<div class="lane${m.stream < 0 ? ' none' : ''}" data-i="${i}" style="--c:${laneColor(m, i)}">`
+    + `<canvas></canvas><span class="lane-name">${esc(m.name)}${m.stream < 0 ? ' · not recorded' : ''}</span></div>`).join('');
+  drawLanes();
+}
+function drawLanes() {
+  if (!cur || $('lanes').hidden) return;
+  const d = dur(), dpr = window.devicePixelRatio || 1;
+  $('lanesBody').querySelectorAll('.lane').forEach(el => {
+    const m = mix[+el.dataset.i], cv = el.querySelector('canvas');
+    if (!m || !cv) return;
+    const peaks = waves && m.stream >= 0 ? waves.tracks[m.stream] : null;
+    el.classList.toggle('loading', !waves && m.stream >= 0);
+    el.classList.toggle('muted', m.muted);
+    const w = Math.round(cv.clientWidth * dpr), h = Math.round(cv.clientHeight * dpr);
+    if (!w || !h) return;
+    if (cv.width !== w || cv.height !== h) { cv.width = w; cv.height = h; }
+    const g = cv.getContext('2d'), mid = h / 2;
+    g.clearRect(0, 0, w, h);
+    g.fillStyle = laneColor(m, +el.dataset.i);
+    if (!peaks || !peaks.length) { g.globalAlpha = 0.35; g.fillRect(0, mid - dpr / 2, w, dpr); return; }
+    // Peaks are on a decibel scale (0 = waves.floor dB down or silent, 255 = full scale), so the volume slider
+    // shifts them by its decibels. A muted lane keeps the size its slider gives it, faded.
+    const shift = 20 * Math.log10(Math.max(m.vol, 0.001) / 100) / (waves.floor || 60), per = d / waves.step / w;
+    g.globalAlpha = m.muted ? 0.3 : 0.95;
+    for (let x = 0; x < w; x++) {
+      const a = Math.floor(x * per), b = Math.max(a + 1, Math.ceil((x + 1) * per));
+      let p = 0;
+      for (let i = a; i < b && i < peaks.length; i++) if (peaks[i] > p) p = peaks[i];
+      const half = Math.max(dpr / 2, clamp(p ? p / 255 + shift : 0, 0, 1) * (mid - dpr));
+      g.fillRect(x, mid - half, 1, half * 2);
+    }
+  });
+}
+async function loadWaves(c) {
+  waves = wavesCache.get(c.id) || null;
+  renderLanes();
+  if (waves || !AUDIO) return;
+  try {
+    const w = await getJSON(`/api/waves/${c.id}`);
+    wavesCache.set(c.id, w);
+    if (wavesCache.size > 60) wavesCache.delete(wavesCache.keys().next().value);
+    if (cur === c) { waves = w; drawLanes(); }
+  } catch (err) {
+    if (cur === c) $('lanesBody').querySelectorAll('.lane').forEach(el => { el.classList.remove('loading'); el.classList.add('none'); });
+  }
+}
+function toggleWaves() { store.set('waves', lanesOn() ? '0' : '1'); renderLanes(); drawTL(); }
+$('bWaves').onclick = toggleWaves;
+$('lanes').addEventListener('pointerdown', e => {  // click or drag on the lanes to move through the clip
+  if (!cur || e.button !== 0) return;
+  e.preventDefault();
+  $('lanes').setPointerCapture(e.pointerId);
+  drag = 'seek';
+  dragMove(e);
+});
+$('lanes').addEventListener('pointermove', e => { if (drag) dragMove(e); });
+$('lanes').addEventListener('pointerup', endDrag);
+$('lanes').addEventListener('pointercancel', endDrag);
+new ResizeObserver(() => drawLanes()).observe($('lanes'));
+
+// Portrait copies made by cropping: a 9:16 frame over the video shows what's kept. Drag it sideways.
+function videoRect() {
+  const sw = stage.clientWidth, sh = stage.clientHeight, vw = vid.videoWidth, vh = vid.videoHeight;
+  if (!vw || !vh || !sw || !sh) return null;
+  const a = vw / vh;
+  return sw / sh > a ? {w: sh * a, h: sh, x: (sw - sh * a) / 2, y: 0} : {w: sw, h: sw / a, x: 0, y: (sh - sw / a) / 2};
+}
+function placeCrop() {
+  const r = cur && AUDIO && exShape === 'portrait' && exFit === 'crop' ? videoRect() : null;
+  const show = !!r && r.w / r.h > 9 / 16 + 0.01;  // a clip that's already that narrow has nothing to crop
+  $('cropBox').hidden = !show;
+  if (!show) return;
+  const ww = r.h * 9 / 16;
+  Object.assign($('cropBox').style, {left: r.x + 'px', top: r.y + 'px', width: r.w + 'px', height: r.h + 'px'});
+  $('cropWin').style.width = ww + 'px';
+  $('cropWin').style.left = cropX * (r.w - ww) + 'px';
+}
+let cropDrag = null;
+$('cropWin').addEventListener('pointerdown', e => {
+  if (e.button !== 0) return;
+  e.preventDefault(); e.stopPropagation();
+  $('cropWin').setPointerCapture(e.pointerId);
+  cropDrag = {x: e.clientX, start: cropX};
+});
+$('cropWin').addEventListener('pointermove', e => {
+  const r = cropDrag && videoRect();
+  if (!r) return;
+  const room = r.w - r.h * 9 / 16;
+  cropX = room > 0 ? clamp(cropDrag.start + (e.clientX - cropDrag.x) / room, 0, 1) : 0.5;
+  placeCrop();
+});
+const endCrop = () => { if (cropDrag) { cropDrag = null; store.set('cropx', String(cropX)); } };
+$('cropWin').addEventListener('pointerup', endCrop);
+$('cropWin').addEventListener('pointercancel', endCrop);
+['click', 'dblclick'].forEach(ev => $('cropWin').addEventListener(ev, e => e.stopPropagation()));  // not play/pause
+new ResizeObserver(() => placeCrop()).observe(stage);
+
+// Save the frame on screen as a picture, and put saved files on the clipboard for pasting into Discord
+const fileActions = f => `<button class="btn sm" type="button" data-reveal="${esc(f)}">${ic('folder')} Show in folder</button>`
+  + (META.clipboard ? `<button class="btn sm" type="button" data-copy="${esc(f)}">${ic('copy')} Copy</button>` : '');
+async function saveStill() {
+  const c = cur;
+  if (!c || !AUDIO) return;
+  try {
+    const r = await post('/api/still', {id: c.id, at: vid.currentTime});
+    toast(`Picture saved: ${r.file}`, false, fileActions(r.file));
+  } catch (err) { toast(err.message, true); }
+}
+$('bStill').onclick = saveStill;
+$('bStill').hidden = !AUDIO;
+async function copyFile(file) {
+  try {
+    await post('/api/copy', {file});
+    toast('Copied. Paste it into Discord (or a folder) with Ctrl+V');
+  } catch (err) { toast(err.message, true); }
+}
+$('bCopy').onclick = () => { if (cur && cur.edited) copyFile(cur.file); };
+
 function neighbor(d) { const i = navList.indexOf(cur); return i < 0 ? null : navList[i + d] || null; }
 function updateNav() { $('bPrev').disabled = !neighbor(-1); $('bNext').disabled = !neighbor(1); }
 function step(d) {
@@ -1803,17 +1949,18 @@ function updateExport() {
   $('exportNote').hidden = AUDIO;
   $('exportNote').textContent = 'Saving edited copies needs ffmpeg, which wasn’t found on this PC.';
   const small = exQuality === 'small', ed = !!(cur && cur.edited), over = ed && $('exOverwrite').checked;
+  const portrait = exShape === 'portrait';
   $('exOverRow').hidden = !ed;
   $('exTitle').textContent = ed ? 'Save changes' : 'Save edited copy';
   $('exGo').innerHTML = ic('save') + (over ? ' Save changes' : ' Save copy');
   $('exName').disabled = over;  // overwriting keeps the clip's name
   if (AUDIO && cur) {
-    const tag = small ? ' (18MB)' : '', dir = exportDirName();
+    const tag = (portrait ? ' (vertical)' : '') + (small ? ' (18MB)' : ''), dir = exportDirName();
     if (over) {
-      const target = cur.file.replace(/\.[^.]+$/, '').replace(/ \(18MB\)$/, '') + tag + '.mp4';
+      const target = cur.file.replace(/\.[^.]+$/, '').replace(TAGS, '') + tag + '.mp4';
       $('exFile').textContent = target === cur.file ? `Overwrites ${dir}\\${cur.file}` : `Replaces ${cur.file} with ${target}`;
     } else {
-      const name = safeName($('exName').value), base = cur.file.replace(/\.[^.]+$/, '').replace(/ \(18MB\)$/, '');
+      const name = safeName($('exName').value), base = cur.file.replace(/\.[^.]+$/, '').replace(TAGS, '');
       const stem = !ed ? `${stemOf(cur.file)}__${name || 'edit'}` : name ? (cur.prefix ? `${cur.prefix}__${name}` : name) : `${base} (edit)`;
       $('exFile').textContent = `Saves to ${dir}\\${stem}${tag}.mp4`;
     }
@@ -1822,10 +1969,34 @@ function updateExport() {
   $('exQNote').textContent = small
     ? 'Re-encoded to stay under 18 MB, so it’s easy to send (Discord and similar). Longer clips get a smaller picture.'
     : 'Same quality as the original recording.';
-  $('exPreciseRow').hidden = small;  // compressed copies are always cut exactly
+  $('exShape').querySelectorAll('button').forEach(b => b.classList.toggle('on', b.dataset.s === exShape));
+  $('exFit').querySelectorAll('button').forEach(b => b.classList.toggle('on', b.dataset.f === exFit));
+  $('exFitRow').hidden = !portrait;
+  $('exFitNote').textContent = exFit === 'crop' ? 'Keeps a 9:16 part of the picture. Drag the frame on the video to choose which part.'
+    : 'Shows the whole picture in the middle, on a blurred copy of itself.';
+  $('exPreciseRow').hidden = small || portrait || $('exFade').checked;  // these are always cut exactly
   placeInd($('exQuality'));
+  placeInd($('exShape'));
+  if (portrait) placeInd($('exFit'));
+  placeCrop();
 }
 let exQuality = store.get('exq', 'original') === 'small' ? 'small' : 'original';
+let exShape = store.get('exshape', 'landscape') === 'portrait' ? 'portrait' : 'landscape';
+let exFit = store.get('exfit', 'crop') === 'blur' ? 'blur' : 'crop';
+let cropX = clamp(parseFloat(store.get('cropx', '0.5')), 0, 1);
+if (isNaN(cropX)) cropX = 0.5;
+$('exFade').checked = store.get('exfade', '0') === '1';
+$('exShape').onclick = e => {
+  const b = e.target.closest('button'); if (!b) return;
+  exShape = b.dataset.s; store.set('exshape', exShape);
+  updateExport();
+};
+$('exFit').onclick = e => {
+  const b = e.target.closest('button'); if (!b) return;
+  exFit = b.dataset.f; store.set('exfit', exFit);
+  updateExport();
+};
+$('exFade').addEventListener('change', () => { store.set('exfade', $('exFade').checked ? '1' : '0'); updateExport(); });
 $('exQuality').onclick = e => {
   const b = e.target.closest('button'); if (!b) return;
   exQuality = b.dataset.q; store.set('exq', exQuality);
@@ -1848,6 +2019,7 @@ $('exGo').onclick = async () => {
     const r = await post('/api/export', {
       id: cur.id, start: sel.a, end: sel.b, precise: $('exPrecise').checked, loud: $('exLoud').checked, name: $('exName').value,
       quality: exQuality, volumes: cur.tracks.map((t, i) => gainOf(rowFor(i))),
+      shape: exShape, fit: exFit, cropX, fade: $('exFade').checked,
       overwrite: !!(cur.edited && $('exOverwrite').checked),
     });
     exJob = r.job;
@@ -1869,7 +2041,7 @@ async function pollJob(job) {
     $('exGo').disabled = false;
     if (j.state === 'done') {
       const done = () => setProg(1, `${ic('check')} ${j.overwrote ? 'Overwrote' : 'Saved'} <b>${esc(j.file)}</b>${j.size ? ` · ${fmtSize(j.size)}` : ''}`, false,
-        `<button class="btn sm" type="button" data-reveal="${esc(j.file)}">${ic('folder')} Show in folder</button>`);
+        fileActions(j.file));
       done();
       toast(j.overwrote ? 'Changes saved' : 'Edited copy saved');
       const wasEdited = cur && cur.edited;
@@ -1887,6 +2059,8 @@ document.addEventListener('click', async e => {
   if (place) { post('/api/open', {what: place.dataset.openPlace}).catch(err => toast(err.message, true)); return; }
   const src = e.target.closest('[data-open-src]');
   if (src) { const c = byId.get(src.dataset.openSrc); if (c) openPlayer(c.id, [c]); return; }
+  const cp = e.target.closest('[data-copy]');
+  if (cp) { copyFile(cp.dataset.copy); return; }
   const b = e.target.closest('[data-reveal]'); if (!b) return;
   try { await post('/api/reveal', {file: b.dataset.reveal}); } catch (err) { toast(err.message, true); }
 });
@@ -1916,7 +2090,7 @@ document.addEventListener('keydown', e => {
     ',': () => { vid.pause(); seek(vid.currentTime - 1 / 30); },
     '.': () => { vid.pause(); seek(vid.currentTime + 1 / 30); },
     i: setIn, o: setOut, home: () => seek(sel.a), end: () => seek(sel.b),
-    f: toggleFull, m: toggleMute, r: startRename, s: toggleStar,
+    f: toggleFull, m: toggleMute, r: startRename, s: toggleStar, c: saveStill, w: toggleWaves,
     n: () => step(1), pagedown: () => step(1), p: () => step(-1), pageup: () => step(-1),
     escape: () => { if (!document.fullscreenElement) closeClip(); },
   };

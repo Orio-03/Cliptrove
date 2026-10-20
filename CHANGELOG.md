@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.5.0] - 2026-10-20
+
+- **ffmpeg comes included.** The Windows download now has ffmpeg built in, so thumbnails, Chat/Mic audio and saving edited copies work straight away. Nothing else to install.
+- **Waveforms.** Under the video, each track (Game, Chat, Mic) has its own lane showing its waveform, like in GG's editor. A lane grows and shrinks with its volume slider, so you can see your mix, and clicking a lane jumps there. Press W to hide them.
+- **Portrait copies for Reels, TikTok and Shorts.** Save a 9:16 copy, either cropped (drag the frame over the video to choose what to keep) or with the whole picture on a blurred background.
+- **Fades.** Saved copies can fade in and out, picture and sound.
+- **Copy and paste into Discord.** After saving, Copy puts the file on the clipboard: press Ctrl+V in Discord to send it.
+- **Save a still.** The camera button (or C) saves the frame on screen as a picture.
+
 ## [0.4.1] - 2026-10-13
 
 - **Fixed:** in saved copies, a loud game and a loud mic at the same moment could add up past the maximum and crackle when **Even out loudness** was off. A limiter now holds just those moments under the maximum and leaves the rest of the mix as it is. Thanks to the Reddit commenter who spotted it.

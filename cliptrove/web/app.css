@@ -597,3 +597,23 @@ details.how p{margin:8px 0 0;color:var(--muted);max-width:760px}
 .setup-foot .link-btn{color:var(--muted);font-weight:500}
 .setup-foot .link-btn:hover{color:var(--text)}
 @media (max-width:700px){.setup{padding:0}.setup-card{border-radius:0;height:100%;max-height:none;padding:20px 16px}}
+/* Waveforms: one lane per track under the timeline */
+.lanes{position:relative;margin:0 0 8px;cursor:pointer;touch-action:none;user-select:none;-webkit-user-select:none}
+.lane{position:relative;height:30px;border-radius:6px;background:color-mix(in srgb,var(--c) 9%,#0b0b0b);overflow:hidden}
+.lane+.lane{margin-top:4px}
+.lane canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
+.lane-name{position:absolute;left:6px;top:4px;font-size:10.5px;font-weight:700;letter-spacing:.02em;color:var(--c);background:rgba(8,8,8,.6);padding:0 5px;border-radius:4px;pointer-events:none;z-index:3}
+.lane.muted .lane-name{opacity:.6;text-decoration:line-through}
+.lane.none{opacity:.5}
+.lane.loading::after{content:"";position:absolute;inset:0;background:linear-gradient(90deg,transparent,color-mix(in srgb,var(--c) 25%,transparent),transparent) no-repeat;background-size:35% 100%;animation:lane-load 1.1s linear infinite}
+@keyframes lane-load{from{background-position:-50% 0}to{background-position:150% 0}}
+.ln-dim{position:absolute;top:0;bottom:0;left:0;background:rgba(0,0,0,.58);pointer-events:none;z-index:1}
+.ln-after{right:0}
+.ln-head{position:absolute;top:-3px;bottom:-3px;width:2px;margin-left:-1px;border-radius:1px;background:#fff;box-shadow:0 0 0 1px rgba(0,0,0,.45);pointer-events:none;z-index:2}
+/* Portrait copies: the 9:16 part that's kept, over the video */
+.cropbox{position:absolute;overflow:hidden;pointer-events:none;z-index:2}
+.crop-win{position:absolute;top:0;bottom:0;border:2px solid #07f2cc;border-radius:3px;box-shadow:0 0 0 9999px rgba(0,0,0,.52);cursor:ew-resize;pointer-events:auto;touch-action:none;display:flex;justify-content:center;align-items:flex-start}
+.crop-win span{margin-top:8px;font-size:11px;font-weight:700;color:#00140f;background:#07f2cc;padding:1px 7px;border-radius:5px;pointer-events:none}
+/* Toasts with buttons (Show in folder, Copy) */
+.toast.acts{display:flex;align-items:center;gap:12px}
+.toast-acts{display:flex;gap:6px}

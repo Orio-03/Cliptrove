@@ -93,6 +93,24 @@ await check('nickname and star', async () => {
   await until('the star', `document.getElementById('bStar').classList.contains('on')`);
 });
 
+await check('waveforms, portrait framing and saving a still', async () => {
+  await until('a waveform lane per track', `document.querySelectorAll('#lanesBody .lane canvas').length === 2`);
+  await until('the waveforms', `![...document.querySelectorAll('#lanesBody .lane')].some(l => l.classList.contains('loading'))`, 20000);
+  const inked = await js(`[...document.querySelectorAll('#lanesBody canvas')].map(c => {
+    const d = c.getContext('2d').getImageData(0, 0, c.width, c.height).data;
+    let n = 0; for (let i = 3; i < d.length; i += 4) if (d[i]) n++;
+    return n / (c.width * c.height);
+  })`);
+  if (!inked.every(x => x > 0.2)) throw new Error('the waveforms look empty: ' + inked.join(', '));
+  await click('#exShape [data-s="portrait"]');
+  await click('#exFit [data-f="crop"]');
+  await until('the 9:16 crop frame', `!document.getElementById('cropBox').hidden`);
+  await click('#exShape [data-s="landscape"]');
+  await until('the crop frame to go', `document.getElementById('cropBox').hidden`);
+  await js(`document.dispatchEvent(new KeyboardEvent('keydown', {key: 'c', bubbles: true}))`);
+  await until('the still to be saved', `document.getElementById('toast').innerText.includes('Picture saved')`, 20000);
+});
+
 await check('closing the player', async () => {
   await js(`document.querySelector('[data-close]').click()`);
   await until('the player to close', `document.getElementById('player').hidden`);
