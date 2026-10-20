@@ -53,6 +53,12 @@ class Pieces(unittest.TestCase):
         self.assertIn("overlay=(W-w)/2:(H-h)/2,fps=30,setsar=1[v]", blur)
         self.assertIn("scale=718:1276", blur)  # sizes are always even, as video encoders need
 
+    def test_only_filters_in_every_ffmpeg_build(self):
+        import re
+        graphs = [portrait_graph("crop", 0.5, 1080, ["fps=30", "fade=t=in:st=0:d=0.5"]), portrait_graph("blur", 0.5, 1080)]
+        used = {m.group(1) for g in graphs for m in re.finditer(r"(?:^|[,;\]])([a-z0-9_]+)=", g)}
+        self.assertLessEqual(used, set(media.FILTERS))
+
     def test_tags_on_saved_copies(self):
         for name in ("x__edit (vertical) (18MB)", "x__edit (18MB)", "x__edit (vertical)", "x__edit"):
             self.assertEqual(TAGS.sub("", name), "x__edit")

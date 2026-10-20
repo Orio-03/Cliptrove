@@ -34,6 +34,10 @@ FITS = ("crop", "blur")  # portrait from a wide clip: cut a 9:16 window out of i
 WAVE_RATE = 8000  # samples per second read for waveforms: plenty for an outline, quick to go through
 WAVE_POINTS = 2000  # points per track, more than the player is wide
 WAVE_FLOOR = 60  # waveforms show the last 60 dB below full scale: quiet tracks stay visible, like in audio editors
+# Every ffmpeg filter Cliptrove uses. All are in FFmpeg's LGPL build that comes with the Windows app (filters like
+# eq and boxblur are GPL-only, so they're avoided); the Windows smoke test checks the bundled ffmpeg has each one.
+FILTERS = ("volume", "amix", "alimiter", "loudnorm", "aresample", "afade", "fade", "fps", "scale", "crop", "split",
+           "gblur", "drawbox", "overlay", "setsar")
 
 
 def share_settings(seconds):
@@ -66,7 +70,7 @@ def portrait_graph(fit, crop_x, width, after=()):
         bw, bh = max(2, w // 12 // 2 * 2), max(2, h // 12 // 2 * 2)  # blur a small copy: much faster, looks the same
         return (f"[0:v:0]split=2[pb][pf];"
                 f"[pb]scale={bw}:{bh}:force_original_aspect_ratio=increase,crop={bw}:{bh},gblur=sigma=4,"
-                f"scale={w}:{h},eq=brightness=-0.08[pbg];"
+                f"scale={w}:{h},drawbox=c=black@0.3:t=fill[pbg];"
                 f"[pf]scale={w}:-2[pfg];"
                 f"[pbg][pfg]overlay=(W-w)/2:(H-h)/2" + tail)
     cw, ch = "min(iw,ih*9/16)", "min(ih,iw*16/9)"

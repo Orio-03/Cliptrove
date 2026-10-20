@@ -44,6 +44,11 @@ def main(exe):
     encoders = [line.split()[1] for line in run(ffmpeg, "-hide_banner", "-encoders").splitlines()
                 if " h264" in line or "openh264" in line]
     print("H.264 encoders in the bundled ffmpeg:", ", ".join(encoders))
+    sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    from cliptrove.media import FILTERS
+    have = {line.split()[1] for line in run(ffmpeg, "-hide_banner", "-filters").splitlines()[1:] if len(line.split()) > 2}
+    missing = [f for f in FILTERS if f not in have]
+    assert not missing, f"the bundled ffmpeg lacks filters Cliptrove uses: {missing}"
     for lic in ("FFmpeg-LICENSE.txt", "FFmpeg-SOURCE.txt", "GPL-3.0.txt"):
         assert os.path.isfile(os.path.join(app_dir, "licenses", lic)), f"{lic} is missing"
 
