@@ -177,13 +177,15 @@ td.when{white-space:nowrap;color:var(--muted)}
 
 /* player */
 .player{position:fixed;inset:0;z-index:50;display:grid;place-items:center;padding:24px}
-.player-bg{position:absolute;inset:0;background:rgba(0,0,0,.82);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)}
+/* No backdrop blur here: browsers drawing without the graphics card redo a blur for every video frame, which made
+   playback choppy outside fullscreen. A darker plain backdrop looks almost the same. */
+.player-bg{position:absolute;inset:0;background:rgba(0,0,0,.9)}
 .shell{position:relative;width:min(1600px,100%);height:min(940px,100%);display:grid;grid-template-columns:minmax(0,1fr) 360px;background:var(--panel);border:1px solid var(--line);border-radius:18px;overflow:hidden;box-shadow:0 30px 90px rgba(0,0,0,.6);animation:pop .18s ease-out;outline:none}
 @keyframes pop{from{opacity:0;transform:scale(.98)}}
 .pmain{display:flex;flex-direction:column;min-width:0;min-height:0;background:#000}
 .stage{flex:1;min-height:0;position:relative;display:grid;place-items:center;background:#000;cursor:pointer}
 .stage video{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;display:block}
-.bigplay{position:relative;width:76px;height:76px;border-radius:50%;background:rgba(0,0,0,.55);backdrop-filter:blur(6px);display:grid;place-items:center;color:#fff;opacity:0;transform:scale(.9);transition:opacity .2s,transform .2s;pointer-events:none}
+.bigplay{position:relative;width:76px;height:76px;border-radius:50%;background:rgba(0,0,0,.62);display:grid;place-items:center;color:#fff;opacity:0;transform:scale(.9);transition:opacity .2s,transform .2s;pointer-events:none}
 .bigplay .ic{width:30px;height:30px}
 .stage.paused .bigplay{opacity:1;transform:none}
 .stage-msg{position:absolute;left:50%;bottom:18px;transform:translateX(-50%);background:rgba(0,0,0,.85);color:#fff;padding:7px 12px;border-radius:8px;font-size:13px;text-align:center}
