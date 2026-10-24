@@ -137,7 +137,7 @@ Click any clip to open the player.
   - When it's saved, **Copy** puts the file on the clipboard: press Ctrl+V in Discord to send it.
 - **Save a still:** the camera button (or **C**) saves the frame on screen as a PNG, next to your edited copies.
 
-![The player with Game and Mic volume sliders, trim controls and saving](docs/images/player.webp)
+![The player: a waveform lane each for Game, Chat and Mic under the video, their volume sliders, and trim controls](docs/images/player.webp)
 
 <details>
 <summary>Keyboard shortcuts</summary>

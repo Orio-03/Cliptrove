@@ -1,6 +1,10 @@
 # Changelog
 
-## [0.5.0] - 2026-10-20
+## [Unreleased]
+
+- **Fixed:** named audio tracks in MP4 clips from folders (Game, Chat, Mic...) showed as Track 1, 2, 3 with newer versions of ffmpeg.
+
+## [0.5.0] - 2026-10-24
 
 - **ffmpeg comes included.** The Windows download now has ffmpeg built in, so thumbnails, Chat/Mic audio and saving edited copies work straight away. Nothing else to install.
 - **Waveforms.** Under the video, each track (Game, Chat, Mic) has its own lane showing its waveform, like in GG's editor. A lane grows and shrinks with its volume slider, so you can see your mix, and clicking a lane jumps there. Press W to hide them.
@@ -8,6 +12,7 @@
 - **Fades.** Saved copies can fade in and out, picture and sound.
 - **Copy and paste into Discord.** After saving, Copy puts the file on the clipboard: press Ctrl+V in Discord to send it.
 - **Save a still.** The camera button (or C) saves the frame on screen as a picture.
+- **Smoother playback.** Clips no longer stutter in the player outside fullscreen when your browser is drawing without the graphics card, which can happen right after a graphics driver update. (Restarting the browser also brings the graphics card back.)
 
 ## [0.4.1] - 2026-10-13
 
