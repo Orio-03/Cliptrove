@@ -21,3 +21,6 @@ cache/
 .idea/
 Thumbs.db
 desktop.ini
+
+# The ffmpeg download cached by packaging/build_windows.py
+packaging/.cache/

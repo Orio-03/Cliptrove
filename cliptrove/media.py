@@ -1,10 +1,14 @@
-"""Everything Cliptrove does with ffmpeg: reading clips, thumbnails, Chat/Mic tracks, playable copies of .mkv
-files, and saving edited copies. Without ffmpeg, clips still play; those extras are off."""
+"""Everything Cliptrove does with ffmpeg: reading clips, thumbnails, Chat/Mic tracks and their waveforms,
+playable copies of .mkv files, saving edited copies and stills. Without ffmpeg, clips still play; those extras
+are off."""
+import array
 import json
+import math
 import os
 import re
 import secrets
 import subprocess
+import sys
 import threading
 import time
 
@@ -14,13 +18,26 @@ from .util import NO_WINDOW, find_tool, path_key, retry_io, run
 PLAYABLE = (".mp4", ".m4v", ".mov", ".webm")  # containers the browser plays as they are
 SHARE_LIMIT = 18_000_000  # bytes: "Compressed" copies stay under 18 MB so they're easy to share
 
-# Video encoders for precise cuts, fastest first. The first one that works on this PC is used.
+# Video encoders for re-encoded copies, best first. The first one that works on this PC is used: the graphics
+# card's own (fast), then libx264 (in most ffmpeg you install yourself), then the two in the ffmpeg that comes
+# with the Windows app: Windows' own H.264 encoder and OpenH264.
 ENCODERS = [
     ["-c:v", "h264_amf", "-quality", "quality", "-rc", "cqp", "-qp_i", "18", "-qp_p", "20", "-pix_fmt", "nv12"],
     ["-c:v", "h264_nvenc", "-preset", "p5", "-rc", "vbr", "-cq", "19", "-b:v", "0", "-pix_fmt", "yuv420p"],
     ["-c:v", "h264_qsv", "-global_quality", "20", "-pix_fmt", "nv12"],
     ["-c:v", "libx264", "-preset", "veryfast", "-crf", "18", "-pix_fmt", "yuv420p"],
+    ["-c:v", "h264_mf", "-rate_control", "quality", "-quality", "95", "-pix_fmt", "nv12"],
+    ["-c:v", "libopenh264", "-b:v", "16M", "-maxrate", "24M", "-pix_fmt", "yuv420p"],
 ]
+SHAPES = ("landscape", "portrait")  # portrait: 9:16 for Reels, TikTok and Shorts
+FITS = ("crop", "blur")  # portrait from a wide clip: cut a 9:16 window out of it, or show it all on a blurred copy
+WAVE_RATE = 8000  # samples per second read for waveforms: plenty for an outline, quick to go through
+WAVE_POINTS = 2000  # points per track, more than the player is wide
+WAVE_FLOOR = 60  # waveforms show the last 60 dB below full scale: quiet tracks stay visible, like in audio editors
+# Every ffmpeg filter Cliptrove uses. All are in FFmpeg's LGPL build that comes with the Windows app (filters like
+# eq and boxblur are GPL-only, so they're avoided); the Windows smoke test checks the bundled ffmpeg has each one.
+FILTERS = ("volume", "amix", "alimiter", "loudnorm", "aresample", "afade", "fade", "fps", "scale", "crop", "split",
+           "gblur", "drawbox", "overlay", "setsar")
 
 
 def share_settings(seconds):
@@ -31,6 +48,34 @@ def share_settings(seconds):
         if kbps >= need:
             return kbps, height
     return kbps, 480
+
+
+def peak(samples):
+    """How loud the loudest moment in a slice of 16-bit samples is, on a decibel scale: 0 is WAVE_FLOOR dB below
+    full scale (or silence), 255 is full scale."""
+    top = max(max(samples), -min(samples)) if samples else 0
+    if top <= 0:
+        return 0
+    return max(0, min(255, round((20 * math.log10(top / 32767) + WAVE_FLOOR) / WAVE_FLOOR * 255)))
+
+
+def portrait_graph(fit, crop_x, width, after=()):
+    """The filters that turn [0:v:0] into a 9:16 picture `width` pixels wide, labelled [v]. "crop" keeps a 9:16
+    window of the picture (crop_x: where across it); "blur" shows the whole picture in the middle of a blurred,
+    darker copy of itself. `after` are more filters for the result (fades, frame rate)."""
+    w = max(2, int(width) // 2 * 2)
+    h = w * 16 // 9 // 2 * 2
+    tail = "".join("," + f for f in after) + ",setsar=1[v]"
+    if fit == "blur":
+        bw, bh = max(2, w // 12 // 2 * 2), max(2, h // 12 // 2 * 2)  # blur a small copy: much faster, looks the same
+        return (f"[0:v:0]split=2[pb][pf];"
+                f"[pb]scale={bw}:{bh}:force_original_aspect_ratio=increase,crop={bw}:{bh},gblur=sigma=4,"
+                f"scale={w}:{h},drawbox=c=black@0.3:t=fill[pbg];"
+                f"[pf]scale={w}:-2[pfg];"
+                f"[pbg][pfg]overlay=(W-w)/2:(H-h)/2" + tail)
+    cw, ch = "min(iw,ih*9/16)", "min(ih,iw*16/9)"
+    return (f"[0:v:0]crop=w='{cw}':h='{ch}':x='(iw-{cw})*{float(crop_x):.4f}':y='(ih-{ch})/2',"
+            f"scale={w}:{h}" + tail)
 
 
 def stamp(path):
@@ -48,6 +93,7 @@ class Media:
         self.extract_lock = threading.Lock()  # one extraction at a time: the hard drive is the bottleneck
         self.remux_lock = threading.Lock()
         self.thumb_slots = threading.Semaphore(2)
+        self.wave_lock = threading.Lock()
         self.probes = {}
         self.prefetching = set()
 
@@ -184,6 +230,95 @@ class Media:
             pass
         return want
 
+    def waves(self, cid, path):
+        """The outline of each audio track, for drawing under the player: for every short slice of the clip, how
+        loud its loudest moment is (0 to 255, on a decibel scale: see peak). `step` is the length of a slice in
+        seconds. Made once and cached."""
+        if not self.ffmpeg:
+            raise LookupError("ffmpeg isn't installed")
+        out = os.path.join(paths.WAVES, f"{cid}-{stamp(path)}-db.json")
+        if not os.path.exists(out):
+            with self.wave_lock:
+                if not os.path.exists(out):
+                    self._make_waves(path, out)
+        try:
+            os.utime(out)  # keep recently opened clips in the cache
+        except OSError:
+            pass
+        with open(out, encoding="utf-8") as f:
+            return json.load(f)
+
+    def _make_waves(self, path, out):
+        count = self.audio_count(path)
+        os.makedirs(paths.WAVES, exist_ok=True)
+        tag = secrets.token_hex(3)
+        raws = [f"{out}.{tag}-{i}.raw" for i in range(count)]
+        try:
+            if count:
+                args = [self.ffmpeg, "-v", "error", "-y", "-i", path]
+                for i, raw in enumerate(raws):  # one pass over the file for all tracks
+                    args += ["-map", f"0:a:{i}", "-ac", "1", "-ar", str(WAVE_RATE), "-f", "s16le", raw]
+                r = run(args, timeout=600)
+                if r.returncode:
+                    raise RuntimeError((r.stderr.strip().splitlines() or ["ffmpeg failed"])[-1])
+            tracks, step = [], 0.0
+            for raw in raws:
+                samples = array.array("h")
+                with open(raw, "rb") as f:
+                    samples.frombytes(f.read())
+                if sys.byteorder == "big":
+                    samples.byteswap()
+                size = max(1, math.ceil(len(samples) / WAVE_POINTS))
+                step = max(step, size / WAVE_RATE)
+                tracks.append([peak(samples[i:i + size]) for i in range(0, len(samples), size)])
+            tmp = f"{out}.{tag}.part"
+            with open(tmp, "w", encoding="utf-8") as f:
+                json.dump({"step": step, "floor": WAVE_FLOOR, "tracks": tracks}, f, separators=(",", ":"))
+            os.replace(tmp, out)
+        finally:
+            for raw in raws:
+                try:
+                    os.remove(raw)
+                except OSError:
+                    pass
+
+    def save_still(self, src, out_dir, stem, at):
+        """Save the picture at `at` seconds as a PNG in out_dir; returns the file's name."""
+        if not self.ffmpeg:
+            raise ValueError("Saving a still needs ffmpeg")
+        if not os.path.isfile(src):
+            raise LookupError("That clip's file isn't there any more")
+        at = max(0.0, float(at))
+        out = self._reserve(out_dir, stem, ".png")
+        part = out + ".part"
+        try:
+            r = run([self.ffmpeg, "-v", "error", "-y", "-ss", f"{at:.3f}", "-i", src, "-frames:v", "1",
+                     "-f", "image2", "-c:v", "png", part], timeout=120)
+            if r.returncode or not os.path.getsize(part):
+                raise RuntimeError((r.stderr.strip().splitlines() or ["Couldn't save that picture"])[-1])
+            os.replace(part, out)
+        except Exception:
+            try:
+                os.remove(part)
+            except OSError:
+                pass
+            raise
+        return os.path.basename(out)
+
+    def _reserve(self, out_dir, stem, ext, replace=None):
+        """A free file name in out_dir: never clobbers another file (adds (2), (3)...), and reserves the name
+        with a .part file until the new one is finished."""
+        with self.lock:
+            os.makedirs(out_dir, exist_ok=True)
+            n = 1
+            while True:
+                out = os.path.join(out_dir, stem + (f" ({n})" if n > 1 else "") + ext)
+                same = replace and path_key(out) == path_key(replace)
+                if (same or not os.path.exists(out)) and not os.path.exists(out + ".part"):
+                    open(out + ".part", "wb").close()
+                    return out
+                n += 1
+
     def prefetch(self, cid, src):
         """Get a clip's Chat/Mic ready in the background (used for the next clip on the home page)."""
         with self.lock:
@@ -204,7 +339,7 @@ class Media:
     def clean_cache(self):
         """Forget audio tracks and playable copies that haven't been used for a while."""
         now = time.time()
-        for folder, days in ((paths.AUDIO, 14), (paths.VIDEO, 3), (paths.THUMBS, 120)):
+        for folder, days in ((paths.AUDIO, 14), (paths.VIDEO, 3), (paths.THUMBS, 120), (paths.WAVES, 60)):
             try:
                 names = os.listdir(folder)
             except OSError:
@@ -220,14 +355,17 @@ class Media:
     # ----- saving edited copies -----
 
     def video_encoder(self):
+        """The first encoder in ENCODERS that works on this PC (tried once, then remembered)."""
         if self.encoder is None:
-            self.encoder = ENCODERS[-1]
-            for enc in ENCODERS[:-1]:
+            self.encoder = []
+            for enc in ENCODERS:
                 test = [self.ffmpeg, "-v", "error", "-f", "lavfi", "-i", "color=c=black:s=1280x720:d=0.2",
                         *enc, "-f", "null", "-"]
                 if run(test, timeout=60).returncode == 0:
                     self.encoder = enc
                     break
+        if not self.encoder:
+            raise RuntimeError("None of ffmpeg's video encoders work on this PC, so the video can't be re-encoded")
         return self.encoder
 
     def rate_encoder(self, kbps):
@@ -240,45 +378,51 @@ class Media:
             return ["-c:v", name, "-preset", "p5", "-rc", "cbr", *rate, "-pix_fmt", "yuv420p"]
         if name == "h264_qsv":
             return ["-c:v", name, *rate, "-pix_fmt", "nv12"]
+        if name == "h264_mf":
+            return ["-c:v", name, "-rate_control", "cbr", "-b:v", f"{kbps}k", "-pix_fmt", "nv12"]
+        if name == "libopenh264":
+            return ["-c:v", name, "-rc_mode", "bitrate", *rate, "-pix_fmt", "yuv420p"]
         return ["-c:v", "libx264", "-preset", "medium", *rate, "-pix_fmt", "yuv420p"]
 
-    def start_export(self, src, out_dir, stem, replace, start, end, volumes, precise, loud, small):
-        """Save part of a clip as a new video in out_dir (or over `replace`); returns a job id to follow."""
+    def start_export(self, src, out_dir, stem, replace, start, end, volumes, precise, loud, small,
+                     shape="landscape", fit="crop", crop_x=0.5, fade=False):
+        """Save part of a clip as a new video in out_dir (or over `replace`); returns a job id to follow.
+        shape "portrait" makes a 9:16 copy, either cropped (crop_x: 0 = the left edge of the picture, 1 = the
+        right) or with the whole picture on a blurred background (fit "blur"). fade fades in and out."""
         if not self.ffmpeg:
             raise ValueError("Saving edited copies needs ffmpeg")
         start, end = float(start), float(end)
         if not (0 <= start < end) or end - start < 0.2:
             raise ValueError("Pick a start and end at least 0.2 seconds apart")
+        if shape not in SHAPES or fit not in FITS:
+            raise ValueError("Unknown shape")
+        crop_x = min(1.0, max(0.0, float(crop_x)))
         if not os.path.isfile(src):
             raise LookupError("That clip's file isn't there any more")
         count = self.audio_count(src)
         vols = [min(4.0, max(0.0, float(v))) for v in list(volumes)[:count]]
         vols += [1.0] * (count - len(vols))
+        out = self._reserve(out_dir, stem, ".mp4", replace)
         with self.lock:
-            os.makedirs(out_dir, exist_ok=True)
-            n = 1
-            while True:  # never clobber another file: add (2), (3)... and reserve the name with a .part file
-                out = os.path.join(out_dir, stem + (f" ({n})" if n > 1 else "") + ".mp4")
-                same = replace and path_key(out) == path_key(replace)
-                if (same or not os.path.exists(out)) and not os.path.exists(out + ".part"):
-                    open(out + ".part", "wb").close()
-                    break
-                n += 1
             jid = secrets.token_hex(4)
             self.jobs[jid] = {"state": "running", "progress": 0.0, "file": os.path.basename(out), "error": "",
                               "overwrote": bool(replace)}
+        look = {"shape": shape, "fit": fit, "crop_x": crop_x, "fade": bool(fade)}
         threading.Thread(target=self._export, args=(jid, src, out, start, end, vols, bool(precise), bool(loud),
-                                                    bool(small), replace)).start()
+                                                    bool(small), replace, look)).start()
         return jid
 
     def busy(self):
         return any(j["state"] == "running" for j in self.jobs.values())
 
-    def _export(self, jid, src, out, start, end, vols, precise, loud, small, replace=None):
+    def _export(self, jid, src, out, start, end, vols, precise, loud, small, replace=None, look=None):
         job, part = self.jobs[jid], out + ".part"
+        look = look or {}
+        portrait, fade = look.get("shape") == "portrait", bool(look.get("fade"))
         try:
             length = end - start
             kbps, height = share_settings(length) if small else (0, 0)
+            fd = min(0.5, length / 4)  # how long the fades take
             for attempt in range(3):
                 args = [self.ffmpeg, "-hide_banner", "-v", "error", "-y",
                         "-ss", f"{start:.3f}", "-to", f"{end:.3f}", "-i", src]
@@ -298,9 +442,21 @@ class Media:
                     # crackle: hold just those peaks under it (about -1 dB), and leave the rest as it is
                     chains.append(f"{mixed}alimiter=limit=0.89:level=0[alim]")
                     mixed = "[alim]"
+                if fade and mixed:
+                    chains.append(f"{mixed}afade=t=in:st=0:d={fd:.3f},afade=t=out:st={length - fd:.3f}:d={fd:.3f}[afd]")
+                    mixed = "[afd]"
                 video = "0:v:0"
-                if small:  # smaller picture for longer clips, so the size limit doesn't make it blocky
-                    chains.append(f"[0:v:0]scale=-2:'min(ih,{height})'" + (",fps=30" if kbps < 2500 else "") + "[v]")
+                after = (["fps=30"] if small and kbps < 2500 else []) + (
+                    [f"fade=t=in:st=0:d={fd:.3f}", f"fade=t=out:st={length - fd:.3f}:d={fd:.3f}"] if fade else [])
+                if portrait:
+                    chains.append(portrait_graph(look.get("fit"), look.get("crop_x", 0.5),
+                                                 min(1080, height) if small else 1080, after))
+                    video = "[v]"
+                elif small:  # smaller picture for longer clips, so the size limit doesn't make it blocky
+                    chains.append(f"[0:v:0]scale=-2:'min(ih,{height})'," + ",".join(after + ["setsar=1"]) + "[v]")
+                    video = "[v]"
+                elif after:
+                    chains.append("[0:v:0]" + ",".join(after) + "[v]")
                     video = "[v]"
                 if chains:
                     args += ["-filter_complex", ";".join(chains)]
@@ -309,7 +465,7 @@ class Media:
                     args += ["-map", mixed, "-c:a", "aac", "-b:a", "128k" if small else "192k"]
                 if small:
                     args += self.rate_encoder(kbps)
-                elif precise:
+                elif precise or video != "0:v:0":  # a changed picture always has to be re-encoded
                     args += self.video_encoder()
                 else:
                     args += ["-c:v", "copy"]

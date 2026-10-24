@@ -1,0 +1,8 @@
+{
+  "about": "The ffmpeg that comes with the Windows app: BtbN's LGPL build (the Windows builds ffmpeg.org links to), pinned so every release ships the same tested copy. To update it, pick a newer win64-lgpl-shared zip from https://github.com/BtbN/FFmpeg-Builds/releases and copy its sha256 from that release's checksums.sha256.",
+  "version": "9.0.2",
+  "url": "https://github.com/BtbN/FFmpeg-Builds/releases/download/autobuild-2026-10-20-13-08/ffmpeg-n9.0.2-29-g6dfaba896f-win64-lgpl-shared-9.0.zip",
+  "sha256": "c39750c8dfe849e4389843e5f4af51e8062a6d6a3e8b74c1fd7e469594ef68e2",
+  "source": "https://github.com/FFmpeg/FFmpeg/commit/6dfaba896f",
+  "build_scripts": "https://github.com/BtbN/FFmpeg-Builds/tree/autobuild-2026-10-20-13-08"
+}

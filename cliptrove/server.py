@@ -16,7 +16,7 @@ import urllib.parse
 import urllib.request
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-from . import APP_NAME, __version__, autostart, paths
+from . import APP_NAME, __version__, autostart, clipboard, paths
 from .library import Library, describe
 from .media import Media
 from .util import open_folder
@@ -73,7 +73,7 @@ class App:
             "app": APP_NAME, "appVersion": __version__, "version": data.pop("version"),
             "scan": self.library.scan_status(), "started": data.pop("started"), "lastRun": data.pop("lastRun"),
             "sources": data.pop("sources"), "exportDir": data.pop("exportDir"),
-            "firstRun": not self.library.cfg.get("setupDone", True),
+            "firstRun": not self.library.cfg.get("setupDone", True), "clipboard": clipboard.supported(),
         }
         blob = json.dumps(data, ensure_ascii=False, separators=(",", ":"))
         blob = blob.replace("</", "<\\/").replace("<!--", "<\\u0021--")
@@ -106,12 +106,32 @@ class App:
         except LookupError:
             pass
 
+    def waves(self, cid):
+        return self.media.waves(cid, self.library.file_of(cid))
+
     def start_export(self, body):
         cid = str(body.get("id") or "")
         small = body.get("quality") == "small"
-        src, stem, replace = self.library.export_plan(cid, str(body.get("name", "")), small, bool(body.get("overwrite")))
+        shape = str(body.get("shape") or "landscape")
+        src, stem, replace = self.library.export_plan(cid, str(body.get("name", "")), small, bool(body.get("overwrite")),
+                                                      portrait=shape == "portrait")
         return self.media.start_export(src, self.library.export_dir(), stem, replace, body.get("start"), body.get("end"),
-                                       body.get("volumes") or [], body.get("precise"), body.get("loud"), small)
+                                       body.get("volumes") or [], body.get("precise"), body.get("loud"), small,
+                                       shape=shape, fit=str(body.get("fit") or "crop"),
+                                       crop_x=body.get("cropX", 0.5), fade=bool(body.get("fade")))
+
+    def save_still(self, body):
+        cid, at = str(body.get("id") or ""), float(body.get("at") or 0)
+        src, stem = self.library.still_plan(cid, at)
+        return {"file": self.media.save_still(src, self.library.export_dir(), stem, at)}
+
+    def copy_file(self, name):
+        """Put a saved copy or still (a file in the export folder) on the clipboard."""
+        name = os.path.basename(str(name or ""))
+        path = os.path.join(self.library.export_dir(), name)
+        if not name or not os.path.isfile(path):
+            raise LookupError("File not found")
+        clipboard.copy_files([path])
 
     def reveal(self, cid=None, file=None, folder=False):
         out_dir = self.library.export_dir()
@@ -250,6 +270,8 @@ def make_handler(app):
                     return self.send_file(track, "audio/mp4")
                 if parts[:2] == ["api", "edited"]:
                     return self.send_json({"items": app.library.list_edits(app.token)})
+                if parts[:2] == ["api", "waves"] and len(parts) == 3:
+                    return self.send_json(app.waves(parts[2]))
                 if parts[:2] == ["api", "job"] and len(parts) == 3:
                     return self.send_json(app.media.jobs.get(parts[2]) or {"state": "error", "error": "Unknown job"})
                 if parts[:2] == ["api", "settings"]:
@@ -296,6 +318,11 @@ def make_handler(app):
                     return self.send_json(lib.set_game(cid, body.get("game", "")))
                 if path == "/api/export":
                     return self.send_json({"job": app.start_export(body)})
+                if path == "/api/still":
+                    return self.send_json(app.save_still(body))
+                if path == "/api/copy":
+                    app.copy_file(body.get("file"))
+                    return self.send_json({"ok": True})
                 if path == "/api/prefetch":
                     app.prefetch(cid)
                     return self.send_json({"ok": True})

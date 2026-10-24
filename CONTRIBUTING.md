@@ -9,7 +9,7 @@ Thanks for wanting to help!
 
 ## Working on the code
 
-1. Install [Python](https://www.python.org/downloads/) 3.10 or newer, and ideally [ffmpeg](https://ffmpeg.org).
+1. Install [Python](https://www.python.org/downloads/) 3.10 or newer, and ideally [ffmpeg](https://ffmpeg.org). (The Windows app build downloads its own pinned ffmpeg: see `packaging/ffmpeg.json`.)
 2. Fork the repository and clone your fork.
 3. Run `python -m cliptrove --data-dir test-data --port 48660`. That runs a separate copy with its own settings, so your real library isn't touched.
 4. Run the tests with `python -m unittest discover tests`. The tests that need real videos run only if ffmpeg is installed.

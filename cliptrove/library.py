@@ -63,6 +63,9 @@ def describe(ch):
     return f'{ch["game"]}: removed from GG "{ch["before"]}"'
 
 
+# Tags Cliptrove adds to the end of a saved copy's name: " (vertical)" for 9:16 copies, " (18MB)" for compressed ones
+TAGS = re.compile(r"(?: \((?:vertical|18MB)\))+$")
+
 class Library:
     def __init__(self, media):
         self.media = media
@@ -531,13 +534,13 @@ class Library:
             edits[eid] = path
             info = self.media.probe(path)
             base = os.path.splitext(name)[0]
-            src_key, prefix, label = self.made_from(re.sub(r" \(18MB\)$", "", base), lookups)
+            src_key, prefix, label = self.made_from(TAGS.sub("", base), lookups)
             prefixes[eid] = prefix
             src = clips.get(src_key) if src_key else None
             v = f"t={token}&v={int(st.st_mtime)}"
             n_audio = max(1, info["audio"])
             items.append({
-                "id": eid, "edited": True, "src": "edit", "title": label.replace(" (18MB)", "") or base, "custom": True,
+                "id": eid, "edited": True, "src": "edit", "title": TAGS.sub("", label) or base, "custom": True,
                 "nick": "", "game": src["game"] if src else "Unknown game",
                 "recorded": src["recorded"] if src else iso_time(st.st_mtime), "made": iso_time(st.st_mtime),
                 "size": st.st_size, "full": info["duration"], "start": 0.0, "end": info["duration"], "trimmed": False,
@@ -562,12 +565,12 @@ class Library:
     def file_of(self, cid):
         return self.edit_path(cid) if cid.startswith("x") else self.clip(cid)[1]["file"]
 
-    def export_plan(self, cid, name, small, overwrite):
+    def export_plan(self, cid, name, small, overwrite, portrait=False):
         """(source file, name for the new file without extension, file it replaces or None)."""
-        tag = " (18MB)" if small else ""
+        tag = (" (vertical)" if portrait else "") + (" (18MB)" if small else "")
         if cid.startswith("x"):  # an edited clip: overwrite it, or save a new copy next to it
             src = self.edit_path(cid)
-            base = re.sub(r" \(18MB\)$", "", os.path.splitext(os.path.basename(src))[0])
+            base = TAGS.sub("", os.path.splitext(os.path.basename(src))[0])
             if overwrite:
                 return src, base + tag, src
             with self.lock:
@@ -579,6 +582,17 @@ class Library:
         base = os.path.splitext(os.path.basename(src))[0]
         m = STEM.match(base)
         return src, f"{m.group(1) if m else base}__{safe_name(name) or 'edit'}{tag}", None
+
+    def still_plan(self, cid, at):
+        """(source file, name for a still picture at `at` seconds, without extension)."""
+        at = max(0.0, float(at))
+        when = f"{int(at // 60)}m{at % 60:04.1f}s".replace(".", ",")  # 0m12,4s: no dot before the extension
+        src = self.file_of(cid)
+        base = TAGS.sub("", os.path.splitext(os.path.basename(src))[0])
+        if cid.startswith("x"):
+            return src, f"{base} still {when}"
+        m = STEM.match(base)
+        return src, f"{m.group(1) if m else base}__still {when}"
 
     # ----- what the page gets -----
 
