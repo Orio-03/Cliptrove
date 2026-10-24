@@ -78,6 +78,12 @@ def portrait_graph(fit, crop_x, width, after=()):
             f"scale={w}:{h}" + tail)
 
 
+def track_title(tags):
+    """An audio track's name. ffmpeg 9 reads names written into MP4 files as "name"; older ones, and MKV files,
+    use "title"; some recorders only set a handler name."""
+    return tags.get("title") or tags.get("name") or tags.get("handler_name") or ""
+
+
 def stamp(path):
     st = os.stat(path)
     return f"{int(st.st_mtime)}-{st.st_size}"
@@ -111,7 +117,7 @@ class Media:
                 "ok": True, "probed": bool(self.ffprobe)}
         if self.ffprobe:
             r = run([self.ffprobe, "-v", "error", "-show_entries",
-                     "format=duration:stream=codec_type,codec_name,width,height:stream_tags=title,handler_name",
+                     "format=duration:stream=codec_type,codec_name,width,height:stream_tags=title,name,handler_name",
                      "-of", "json", path], timeout=120)
             try:
                 j = json.loads(r.stdout or "{}")
@@ -125,7 +131,7 @@ class Media:
             except (TypeError, ValueError):
                 duration = 0.0
             info.update(duration=duration, audio=len(audio),
-                        titles=[(s.get("tags") or {}).get("title") or (s.get("tags") or {}).get("handler_name") or ""
+                        titles=[track_title(s.get("tags") or {})
                                 for s in audio],
                         video=(video or {}).get("codec_name", ""), audioCodecs=[s.get("codec_name", "") for s in audio],
                         width=(video or {}).get("width") or 0, height=(video or {}).get("height") or 0,

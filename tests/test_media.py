@@ -60,6 +60,16 @@ class WithFFmpeg(unittest.TestCase):
         self.assertAlmostEqual(info["duration"], 2.0, delta=0.15)
         self.assertEqual((info["audio"], info["video"], info["ok"]), (2, "h264", True))
 
+    def test_track_names(self):
+        # Named tracks, the way recorders and ffmpeg write them (newer ffmpeg reads them back as "name")
+        path = self.tmp.sub("clips", "named.mp4")
+        subprocess.run([support.FFMPEG, "-v", "error", "-y", "-i", self.mp4, "-map", "0", "-c", "copy",
+                        "-metadata:s:a:0", "title=Game", "-metadata:s:a:1", "title=Mic", path],
+                       check=True, capture_output=True, creationflags=NO_WINDOW)
+        self.assertEqual(self.m.probe(path)["titles"], ["Game", "Mic"])
+        self.assertEqual(media.track_title({"handler_name": "SoundHandler"}), "SoundHandler")
+        self.assertEqual(media.track_title({}), "")
+
     def test_probe_of_a_broken_file(self):
         info = self.m.probe(self.broken)
         self.assertFalse(info["ok"])
